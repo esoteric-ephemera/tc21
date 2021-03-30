@@ -1,10 +1,9 @@
 import numpy as np
-from mcp07 import chi_mcp07
 import multiprocessing as mp
-from time import time
 from itertools import product
 
 import settings
+from mcp07 import chi_mcp07
 from gl_grid import gauss_legendre
 from integrators import nquad
 from lsda import eps_x,ec_pw92,ec_pz81

@@ -7,7 +7,7 @@ import multiprocessing
 import settings
 from utilities.gauss_quad import gauss_quad
 from utilities.integrators import clenshaw_curtis_grid
-from dft.mcp07 import chi_parser
+from dft.chi import chi_parser
 
 pi = settings.pi
 

@@ -51,7 +51,7 @@ def write_to_file(ec,err):
     tout = np.zeros((0,4))
     for rs in ec:
         tout = np.vstack((tout,[rs,ec[rs],ec_ref[rs],err[rs]]))
-    np.savetxt('./epsilon_C_rMCP07.csv',tout,delimiter=',',header='rs, eps_c approx, eps_C PW92, absolute difference')
+    np.savetxt('./eps_data/epsilon_C_rMCP07.csv',tout,delimiter=',',header='rs, eps_c approx, eps_C PW92, absolute difference')
     return
 
 def plot_rMCP07(pars):
@@ -63,7 +63,7 @@ def plot_rMCP07(pars):
             ec_ref[rs],_,_ = ec_pw92(rs,0.0)
     _,ec,err=get_errors(pars,rsl=rslist)
     write_to_file(ec,err)
-    eps_c_plots(targ='./epsilon_C_rMCP07.csv')
+    eps_c_plots(targ='./eps_data/epsilon_C_rMCP07.csv')
     return
 
 def get_errors(pars,rsl=[],multi=False):
@@ -105,7 +105,7 @@ def fit_optimal():
         bind = np.argmin(np.asarray(tout))
         dat = np.vstack((dat,[rs,a_l[bind],tout[bind]]))
         print(dat)
-    np.savetxt('./optimal_fit.csv',dat,delimiter=',',header='rs,a*kF,|error|')
+    np.savetxt('./eps_data/optimal_fit.csv',dat,delimiter=',',header='rs,a*kF,|error|')
 
 def ec_fitting():
 
@@ -188,7 +188,7 @@ def ec_fitting():
         par = pars[best]
         epsc = ecs[best]
         errors = errs[best]
-        logfile = './fitting/ec_fit_log.csv'
+        logfile = './eps_data/ec_fit_log.csv'
         ostr = 'pars\n'
         ostr += ('{:}'*len(par)).format(par) + '\n'
         ostr += 'Residual {:}\n'.format(errors['res'])

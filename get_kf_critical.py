@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from os import path,system
 
 import settings
-from dft.mcp07 import chi_parser
+from dft.chi import chi_parser
 
 freq_dependent = ['MCP07','rMCP07']
 disperion = False

@@ -6,7 +6,7 @@ import multiprocessing as mp
 
 import settings
 from utilities.gauss_quad import gauss_quad
-from dft.mcp07 import chi_parser
+from dft.chi import chi_parser
 from utilities.integrators import nquad
 
 pi = settings.pi

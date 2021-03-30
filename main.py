@@ -7,10 +7,6 @@ from frequency_moments.third_moment import third_moment_calculation,plotter
 from fitting.fit_re_fxc_omega import hx_fit_main,kramers_kronig_plot
 from fitting.fit_ec import ec_fitting
 
-rsl = np.linspace(1.0,10.0,2000)
-ec,_,_=ec_pw92(rsl,0.0)
-np.savetxt('./eps_c_PW92.csv',np.transpose((rsl,ec)),delimiter=',',header='rs,PW92 eps_c',fmt='%.18f,%.18f')
-
 if settings.routine == 'third moment':
 
     if settings.third_mom_pars['calc']:

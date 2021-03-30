@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 
 from settings import pi
-from dft.mcp07 import chi_parser
+from dft.chi import chi_parser
 
 color_list = ['tab:blue','tab:orange','tab:green','tab:red','tab:purple','tab:brown','tab:olive','tab:gray']
 
@@ -39,7 +39,7 @@ ax[1].yaxis.set_minor_locator(MultipleLocator(5000))
 ax[1].set_xlabel('$q/k_{\\mathrm{F}}$',fontsize=14)
 plt.suptitle('$\\Delta S(r_{\\mathrm{s}}) = S^{\\mathrm{MCP07}}_1(q,\\omega_\\mathrm{low})-S_0(q,\\omega_\\mathrm{low})$, \n $\\omega_\\mathrm{low} = [0.05 + 10^{-10}~i]\\omega_p(0)$',fontsize=14)
 #plt.show()
-plt.savefig('./MCP07_spec_diff.png',dpi=600,bbox_inches='tight')
+plt.savefig('./figs/MCP07_spec_diff.png',dpi=600,bbox_inches='tight')
 plt.cla()
 plt.clf()
 """
@@ -67,4 +67,4 @@ axl.set_xlabel('$q/k_{\\mathrm{F}}$',fontsize=14)
 plt.suptitle('$\\Delta S(r_{\\mathrm{s}}) = S^{\\mathrm{MCP07}}_1(q,\\omega_\\mathrm{low})-S_0(q,\\omega_\\mathrm{low})$,    $\\omega_\\mathrm{low} = 0.01\\omega_p(0)$',fontsize=14)
 #plt.suptitle('$\\Delta S(r_{\\mathrm{s}}) = S^{\\mathrm{MCP07}}_1(q,\\omega=0)-S_0(q,\\omega=0)$',fontsize=12)
 #plt.show()
-plt.savefig('./MCP07_spec_diff_re_olo.pdf',dpi=600,bbox_inches='tight')
+plt.savefig('./figs/MCP07_spec_diff_re_olo.pdf',dpi=600,bbox_inches='tight')
