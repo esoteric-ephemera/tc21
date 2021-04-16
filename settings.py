@@ -1,18 +1,36 @@
 
-routine=''
+routine='M3SR'
+
+"""
+    routine options:
+        M3SR : third frequency-moment sum rule calculation, options set in third_mom_pars
+
+        FMT : arbitary frequency moment calculation, options set in moment_pars
+
+        HXFIT : fits the real part of the GKI kernel using the Kramers-Kronig relations
+
+        ECFIT : fits the TC kernel to jellium correlation energies per electron
+
+        KFC : finds the critical Fermi wavevector for onset of a static cdw
+
+        QVRSC : plot the critical rs such that no solutions exist to parametrize the QV kernel
+
+        GHPLAS : plots dynamic structure factor S(q,omega) to demonstrate ghost plasmon
+
+        PKER : plots the kernel and effective potential of Fermi liquid theory
+
+        PQMC : plots QMC static structure factor, S(q), data
+"""
 
 # enter as scalar or vector
-rs_list = [4,69]#[1,2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,100]
+rs_list = [4,10,30,69,100]#[1,2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,100]
 if not hasattr(rs_list,'__len__'):
     rs_list = [rs_list]
 
-# currently really only 'C' works, but 'X' and 'XC' are valid options
-eps = 'C'
+# 'ALDA', 'RPA', 'MCP07', 'static MCP07', 'TC', 'QV', 'QV_MCP07'
+fxc = 'MCP07'
 
-# 'ALDA', 'RPA', 'MCP07', 'static MCP07' or 'rMCP07'
-fxc = 'rMCP07'
-
-rMCP07_pars = {'a': 4.01, 'b': 1.21, 'c': 0.11, 'd': 1.07}#{'a':4.01067394,'b': 1.21065643, 'c':0.10975759, 'd': 1.07043728}
+TC_pars = {'a': 4.01, 'b': 1.21, 'c': 0.11, 'd': 1.07}#{'a':4.01067394,'b': 1.21065643, 'c':0.10975759, 'd': 1.07043728}
 
 # PZ81 or PW92
 LDA = 'PW92'
@@ -22,10 +40,10 @@ q_bounds = {'min':0.01,'max':3.01,'step':0.01} # bounds and stepsize for wavevec
 moment_pars = {'order':0.0, 'prec':1.e-8,
 'method':'gk_adap' # method can be gk_adap (Gauss-Kronrod), original (from PNAS), or adap when order = 0
 }
-third_mom_pars = {'calc':True,'plot':False,
+third_mom_pars = {'calc':True,'plot':True,
 'interp': 'spline' # interp can be spline or linear
 }
-fit_pars = {'fit':True,'plot':False}
+gen_opts = {'calc':False, 'plot': True}
 
 # True: use a tabulated parameterization of the GKI kernel
 # False: re-evaluate the Cauchy residue integral for each value of I*omega for omega real
@@ -74,3 +92,6 @@ d_step = 0.5
 """
 pi = 3.141592653589793238462643383279502884197169399375105820974944592307816406286198
 #from julia BigFloat(pi)
+
+# colors for plots
+clist = ['darkblue','darkorange','darkgreen','darkred','black']

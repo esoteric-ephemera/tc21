@@ -5,9 +5,9 @@ from os import path
 from scipy.optimize import minimize
 
 import settings
-from lsda import ec_pw92
+from dft.lsda import ec_pw92
 from eps_c import eps_quick,set_up_grid,establish_dependencies
-from ec_plot import eps_c_plots
+from plotters.ec_plot import eps_c_plots
 
 ec_ref = {}
 for rs in settings.rs_list:
@@ -51,10 +51,10 @@ def write_to_file(ec,err):
     tout = np.zeros((0,4))
     for rs in ec:
         tout = np.vstack((tout,[rs,ec[rs],ec_ref[rs],err[rs]]))
-    np.savetxt('./eps_data/epsilon_C_rMCP07.csv',tout,delimiter=',',header='rs, eps_c approx, eps_C PW92, absolute difference')
+    np.savetxt('./eps_data/epsilon_C_TC.csv',tout,delimiter=',',header='rs, eps_c approx, eps_C PW92, absolute difference')
     return
 
-def plot_rMCP07(pars):
+def plot_TC(pars):
     rslist = [i/10.0 for i in range(1,10)]
     for tmp in range(1,121,1):
         rslist.append(tmp)
@@ -63,7 +63,7 @@ def plot_rMCP07(pars):
             ec_ref[rs],_,_ = ec_pw92(rs,0.0)
     _,ec,err=get_errors(pars,rsl=rslist)
     write_to_file(ec,err)
-    eps_c_plots(targ='./eps_data/epsilon_C_rMCP07.csv')
+    eps_c_plots(targ='./eps_data/epsilon_C_TC.csv')
     return
 
 def get_errors(pars,rsl=[],multi=False):
@@ -109,7 +109,7 @@ def fit_optimal():
 
 def ec_fitting():
 
-    fit_regex = ['rMCP07']
+    fit_regex = ['TC']
 
     if settings.fxc in fit_regex:
 
@@ -206,10 +206,10 @@ def min_func(p):
 
 if __name__ == "__main__":
     """
-    plot_rMCP07((settings.rMCP07_pars['a'],settings.rMCP07_pars['b'],settings.rMCP07_pars['c']))
+    plot_TC((settings.TC_pars['a'],settings.TC_pars['b'],settings.TC_pars['c']))
     exit()
     """
-    pars = settings.rMCP07_pars
+    pars = settings.TC_pars
     tps = (pars['a'],pars['b'],pars['c'],pars['d'])
     """
     p0 = [pars['a'],pars['b'],pars['c'],pars['d']]
@@ -219,7 +219,7 @@ if __name__ == "__main__":
     """
     par,epsc,errors=get_errors(tps)
     #print(errors['res'])
-    plot_rMCP07(tps)
+    plot_TC(tps)
 
     exit()
 

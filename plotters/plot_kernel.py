@@ -4,13 +4,14 @@ from os import path,system
 from scipy.optimize import minimize_scalar
 
 import settings
-from dft.mcp07 import mcp07_dyanmic
+from dft.mcp07 import mcp07_dynamic
 
-clist=['tab:blue','tab:orange','tab:green','tab:red','tab:purple','tab:brown','tab:olive','tab:gray']
+clist = settings.clist
+#clist=['tab:blue','tab:orange','tab:green','tab:red','tab:purple','tab:brown','tab:olive','tab:gray']
 pi = settings.pi
 
-if not path.isdir('./kernel_plots'):
-    system('mkdir ./kernel_plots')
+if not path.isdir('./figs/kernel_plots'):
+    system('mkdir -p ./figs/kernel_plots')
 
 def wrap_kernel(q,freq,rs):
     dvars = {}
@@ -21,11 +22,11 @@ def wrap_kernel(q,freq,rs):
 
     if settings.fxc == 'MCP07':
         wLDA = 'PZ81'
-        qrMCP07 = False
-    elif settings.fxc == 'rMCP07':
+        qTC = False
+    elif settings.fxc == 'TC':
         wLDA = settings.LDA
-        qrMCP07 = True
-    return mcp07_dyanmic(q,freq,dvars,axis='real',revised=qrMCP07,pars=settings.rMCP07_pars,param=wLDA)
+        qTC = True
+    return mcp07_dynamic(q,freq,dvars,axis='real',revised=qTC,pars=settings.TC_pars,param=wLDA)
 
 def get_crossing(q_init,freq,rs):
 
@@ -57,7 +58,7 @@ def get_crossing(q_init,freq,rs):
     veff_cross = min_func(qmin,ret_real=False)
     return qmin,veff_cross
 
-def plotter(rs):
+def fxc_plotter(rs):
     wp = (3.0/rs)**(0.5)
     kf = (9.0*pi/4.0)**(1.0/3.0)/rs
     freq_l=[0.0,wp,1e20]
@@ -80,19 +81,23 @@ def plotter(rs):
             lbl = '=\omega_p(0)$'
         elif iw == 2:
             lbl = '\\to \infty$'
-        ax[0].plot(q_l,kf**2*fxc.real,label='$\omega'+lbl)
-        ax[1].plot(q_l,kf**2*fxc.imag,label='$\omega'+lbl)
+        ax[0].plot(q_l,kf**2*fxc.real,color=clist[iw],linewidth=2.5,label='$\omega'+lbl)
+        ax[1].plot(q_l,kf**2*fxc.imag,color=clist[iw],linewidth=2.5,label='$\omega'+lbl)
     ax[0].legend(fontsize=16)
     for i in range(2):
+        ax[i].tick_params(axis='both',labelsize=20)
         ax[i].set_xlim([0.0,q_l[-1]])
-        ax[i].set_xlabel('$q/k_{\mathrm{F}}$',fontsize=16)
-    ax[0].set_ylabel('$k_{\mathrm{F}}^2 ~\mathrm{Re}[ f_{\mathrm{xc}}(q,\omega)]$',fontsize=16)
-    ax[1].set_ylabel('$k_{\mathrm{F}}^2 ~\mathrm{Im}[ f_{\mathrm{xc}}(q,\omega)]$',fontsize=16)
+        ax[i].set_xlabel('$q/k_{\mathrm{F}}$',fontsize=24)
+    ax[0].set_ylabel('$k_{\mathrm{F}}^2 ~\mathrm{Re}~ f_{\mathrm{xc}}(q,\omega)$',fontsize=24)
+    ax[1].set_ylabel('$k_{\mathrm{F}}^2 ~\mathrm{Im}~ f_{\mathrm{xc}}(q,\omega)$',fontsize=24)
     plt.tight_layout()
     fig.subplots_adjust(top=0.9)
-    fig.suptitle(settings.fxc+' kernel, bulk jellium $r_{\\mathrm{s}}=$'+str(rs),fontsize=16)
+    if settings.fxc == 'TC':
+        fig.suptitle('TC21 kernel, bulk jellium $r_{\\mathrm{s}}=$'+str(rs),fontsize=24)
+    else:
+        fig.suptitle(settings.fxc+' kernel, bulk jellium $r_{\\mathrm{s}}=$'+str(rs),fontsize=24)
     #plt.show()
-    plt.savefig('./kernel_plots/'+settings.fxc+'_rs_'+str(rs)+'.pdf',dpi=600,bbox_inches='tight')
+    plt.savefig('./figs/kernel_plots/'+settings.fxc+'_rs_'+str(rs)+'.pdf',dpi=600,bbox_inches='tight')
 
     plt.cla()
     plt.clf()
@@ -107,30 +112,37 @@ def plotter(rs):
             lbl = '=\omega_p(0)$'
         elif iw == 2:
             lbl = '\\to \infty$'
-        ax.plot(q_l,(v_eff[iw]/v_bare).real,label='$\omega'+lbl,color=clist[iw])
-        ax.plot(q_l,(v_eff[iw]/v_bare).imag,linestyle='--',color=clist[iw])
+        ax.plot(q_l,(v_eff[iw]/v_bare).real,linewidth=2.5,label='$\omega'+lbl,color=clist[iw])
+        ax.plot(q_l,(v_eff[iw]/v_bare).imag,linewidth=2.5,linestyle='--',color=clist[iw])
         minind = np.argmin(np.abs(v_eff[iw].real))
         q_min_init = q_l[minind]
         qmin,vcross = get_crossing(q_min_init,w,rs)
         print(qmin,w,vcross)
 
-    ax.legend(fontsize=16)
+    ax.legend(fontsize=20)
     #for i in range(2):
     ax.set_xlim([0.0,q_l[-1]])
-    ax.set_xlabel('$q/k_{\mathrm{F}}$',fontsize=16)
-    ax.hlines(0.0,ax.get_xlim()[0],ax.get_xlim()[1],linestyle='--',color='gray')
-    ax.set_ylabel('$v_{\\mathrm{eff}}(q,\omega)/v_{\\mathrm{bare}}(q)$',fontsize=16)
+    ax.set_xlabel('$q/k_{\mathrm{F}}$',fontsize=24)
+    ax.hlines(0.0,ax.get_xlim()[0],ax.get_xlim()[1],linewidth=2.5,linestyle='--',color='gray')
+    ax.set_ylabel('$v_{\\mathrm{eff}}(q,\omega)/v_{\\mathrm{bare}}(q)$',fontsize=24)
     #ax.set_ylabel('$\mathrm{Re}\left[\\frac{v_{\\mathrm{eff}}(q,\omega)}{v_{\\mathrm{bare}}(q)}\\right]$',fontsize=16)
     #ax.set_ylabel('$\mathrm{Im}\left[\\frac{v_{\\mathrm{eff}}(q,\omega)}{v_{\\mathrm{bare}}(q)}\\right]$',fontsize=16)
     #plt.tight_layout()
     #fig.subplots_adjust(top=0.9)
-    plt.title(settings.fxc+' dressed potential, bulk jellium $r_{\\mathrm{s}}=$'+str(rs),fontsize=16)
+    """
+    if settings.fxc == 'TC':
+        plt.title('TC21 dressed potential, bulk jellium $r_{\\mathrm{s}}=$'+str(rs),fontsize=24)
+    else:
+        plt.title(settings.fxc+' dressed potential, bulk jellium $r_{\\mathrm{s}}=$'+str(rs),fontsize=24)
+    """
+    plt.title('$r_{\\mathrm{s}}=$'+str(rs)+' jellium',fontsize=20)
+    ax.tick_params(axis='both',labelsize=20)
     #plt.show()
-    plt.savefig('./kernel_plots/veff_'+settings.fxc+'_rs_'+str(rs)+'.pdf',dpi=600,bbox_inches='tight')
+    plt.savefig('./figs/kernel_plots/veff_'+settings.fxc+'_rs_'+str(rs)+'.pdf',dpi=600,bbox_inches='tight')
 
     return
 
 if __name__ == "__main__":
 
     for rs in settings.rs_list:
-        plotter(rs)
+        fxc_plotter(rs)

@@ -10,6 +10,7 @@ from utilities.integrators import clenshaw_curtis_grid
 from dft.chi import chi_parser
 
 pi = settings.pi
+eps = 'C'
 
 def establish_dependencies(): # makes folder structure
     for dependency in ['grids','eps_data','freq_data','reference_data']:
@@ -57,7 +58,7 @@ def set_up_grid(n_z_pts,n_L_pts,n_u_pts,zcp=1.0,ucp=2.0,npartition = {'z':4,'L':
                 wz_ref,z_ref = np.transpose(np.genfromtxt(fl,delimiter=',',skip_header=1))
             elif ifl == 1:
                 wL_ref,L_ref = np.transpose(np.genfromtxt(fl,delimiter=',',skip_header=1))
-    if settings.eps == 'X':
+    if eps == 'X':
         L = np.ones(1)
         wL = np.ones(1)
     else:
@@ -107,7 +108,7 @@ def set_up_grid(n_z_pts,n_L_pts,n_u_pts,zcp=1.0,ucp=2.0,npartition = {'z':4,'L':
         weight[iw_vec] = twz*twL*twu
 
     ws = 0.0
-    if settings.eps == 'X' or settings.eps == 'XC':
+    if eps == 'X' or eps == 'XC':
         ws = np.sum(wz)
 
     return grid,weight,ws
@@ -129,9 +130,9 @@ def eps_quick(gridgen,pars={},rs_l=[],inps=None):
 
     need_chi_0 = False
     need_chi_lambda = False
-    if settings.eps == 'X' or settings.eps == 'C':
+    if eps == 'X' or eps == 'C':
         need_chi_0 = True
-    if settings.eps == 'XC' or settings.eps == 'C':
+    if eps == 'XC' or eps == 'C':
         need_chi_lambda = True
 
     eps_d = {}
@@ -150,16 +151,16 @@ def eps_quick(gridgen,pars={},rs_l=[],inps=None):
             chi_lamb = chi_parser(z,u*1.0j,lamb,rs,settings.fxc,imag_freq=True,reduce_omega=True,pars=pars,LDA=settings.LDA)
         if need_chi_0:
             chi_0 = chi_parser(z,u*1.0j,None,rs,'chi0',imag_freq=True,reduce_omega=True,pars=pars,LDA=settings.LDA)
-        if settings.eps == 'X':
+        if eps == 'X':
             integrand = chi_0.real
-        elif settings.eps == 'C':
+        elif eps == 'C':
             integrand = chi_lamb.real - chi_0.real
-        elif settings.eps == 'XC':
+        elif eps == 'XC':
             integrand = chi_lamb.real
 
         eps_d[rs] = -3*np.sum(wg*integrand)
         #print(eps_d[rs],2*kf/pi*ws)
-        if settings.eps == 'X' or settings.eps == 'XC':
+        if eps == 'X' or eps == 'XC':
             eps_d[rs] -= 2*kf/pi*ws
 
     return eps_d
@@ -226,7 +227,7 @@ if __name__ == "__main__":
     # NB: ALDA grid calculated with settings.LDA == 'PZ81'
     # MCP07 grid with settings.gki_param == True
     kernel_d = {'RPA': [1.0,0.5,4,4,4], 'ALDA': [1.5,0.5,2,3,4], 'MCP07': [2.0, 1.0, 4, 4, 4]}
-    kernel_d['rMCP07'] = kernel_d['MCP07']
+    kernel_d['TC'] = kernel_d['MCP07']
     if True:#settings.fxc in kernel_d:
         pars = kernel_d['MCP07']#settings.fxc]
         up = pars[0]

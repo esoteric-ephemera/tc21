@@ -1,7 +1,7 @@
 import numpy as np
 
-import settings.pi as pi
-from alda import alda,lda_derivs
+from settings import pi
+from dft.alda import alda,lda_derivs
 from utilities.integrators import nquad
 
 
@@ -61,6 +61,13 @@ def gki_dynamic_real_freq(dv,u,x_only=False,revised=False,param='PZ81',dimension
         # purely imaginary frequency
         xk = bnh*u
 
+    """
+        Imaginary part from E.K.U. Gross and W. Kohn,
+        Phys. Rev. Lett. 55, 2850 (1985),
+        https://doi.org/10.1103/PhysRevLett.55.2850,
+        and erratum Phys. Rev. Lett. 57, 923 (1986).
+    """
+
     gx = xk/((1.0 + xk**2)**(5.0/4.0))
 
     if revised:
@@ -91,7 +98,10 @@ def gki_dynamic_real_freq(dv,u,x_only=False,revised=False,param='PZ81',dimension
 def gki_dynamic(dv,u,axis='real',x_only=False,revised=False,param='PZ81',use_par=False):
 
     if not hasattr(u,'__len__'):
-        u = u*np.ones(1)
+        if not hasattr(dv['rs'],'__len__'):
+            u = u*np.ones(1)
+        else:
+            u = u*np.ones(dv['rs'].shape)
     if axis == 'real':
         fxcu = gki_dynamic_real_freq(dv,u,x_only=x_only,revised=revised,param=param)
     elif axis == 'imag':

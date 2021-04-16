@@ -1,10 +1,12 @@
 import numpy as np
+import multiprocessing
 
-from settings import pi
+from settings import pi,nproc
 from dft.alda import alda,lda_derivs
 from utilities.integrators import nquad
-from utilities.roots import bisect
+from utilities.roots import bisect,bracket
 from utilities.special_funcs import erf
+from utilities.interpolators import natural_spline
 
 """
     Zhixin Qian and Giovanni Vignale,
@@ -46,17 +48,7 @@ def s_3_l(kf):
     s3l += 2/(lam*(2+lam**2)**(0.5))*(pi/2 - np.arctan(1/(lam*(2+lam**2)**(0.5))))
     return -s3l/(45*pi)
 
-def get_qv_pars(dv,use_mu_xc=True):
-
-    c3l = 23/15 # just below Eq. 13
-
-    s3l = s_3_l(dv['kF'])
-    """     Eq. 28   """
-    a3l = 2*(2/(3*pi**2))**(1/3)*dv['rs']**2*s3l
-    """     Eq. 29   """
-    b3l = 16*(2**10/(3*pi**8))**(1/15)*rs*(s3l/c3l)**(4/5)
-
-    fxc_0 = alda(dv,x_only=False,param='PW92')
+def high_freq(dv):
     """
      from Iwamato and Gross, Phys. Rev. B 35, 3003 (1987),
      f(q,omega=infinity) = -4/5 n^(2/3)*d/dn[ eps_xc/n^(2/3)] + 6 n^(1/3) + d/dn[ eps_xc/n^(1/3)]
@@ -68,6 +60,21 @@ def get_qv_pars(dv,use_mu_xc=True):
     eps_c,d_eps_c_d_rs = lda_derivs(dv,param='PW92')
     finf_c = -(22.0*eps_c + 26.0*dv['rs']*d_eps_c_d_rs)/(15.0*dv['n'])
     fxc_inf = finf_x + finf_c
+    return fxc_inf
+
+def get_qv_pars(dv,use_mu_xc=True):
+
+    c3l = 23/15 # just below Eq. 13
+
+    s3l = s_3_l(dv['kF'])
+    """     Eq. 28   """
+    a3l = 2*(2/(3*pi**2))**(1/3)*dv['rs']**2*s3l
+    """     Eq. 29   """
+    b3l = 16*(2**10/(3*pi**8))**(1/15)*dv['rs']*(s3l/c3l)**(4/5)
+
+    fxc_0 = alda(dv,x_only=False,param='PW92')
+
+    fxc_inf = high_freq(dv)
 
     # approx. expression for mu_xc that interpolates metallic data, from Table 1 of QV
     # fitting code located in fit_mu_xc
@@ -87,19 +94,25 @@ def get_qv_pars(dv,use_mu_xc=True):
         res += o3l*tmp*np.exp(-o3l2/tmp)/pi + 0.5*(tmp/pi)**(0.5)*(tmp + 2*o3l2)*(1 + erf(o3l/tmp**(0.5)))
         res *= 4*(pi/dv['n'])**(0.5) # 2*omega_p(0)/n
         return df + res
-
-    if solve_g3l(.5)*solve_g3l(5) < 0.0:
-        g3l,success = bisect(solve_g3l,(0.5,5.0),tol=1.5e-7,maxstep=200)
-    else:
-        g3l = 0.5 # appears to be limiting value of Gamma_3?
+    #import matplotlib.pyplot as plt
+    #tmpl = np.linspace(1.e-6,20.0,5000)
+    #plt.plot(tmpl,solve_g3l(tmpl))
+    #plt.show()
+    poss_brack = bracket(solve_g3l,(1.e-6,3.0),nstep=500,vector=True)
+    g3l = 1.e-14
+    for tbrack in poss_brack:
+        tg3l,success = bisect(solve_g3l,tbrack,tol=1.5e-7,maxstep=200)
+        if success < 1.5e-7:
+            g3l = max(tg3l,g3l)
     o3l = 1 - 1.5*g3l
     return a3l,b3l,g3l,o3l
 
 def im_fxc_longitudinal(omega,dv):
 
-    a3,b3,g3,om3 = get_qv_pars(dv['rs'])
+    a3,b3,g3,om3 = get_qv_pars(dv)
 
-    wt = omega/(2*dv['wp0'])
+    wp0 = (3/dv['rs']**3)**(0.5)
+    wt = omega/(2*wp0)
 
     imfxc = a3/(1 + b3*wt**2)**(5/4)
     imfxc += wt**2*np.exp(-(np.abs(wt)-om3)**2/g3)
@@ -116,7 +129,7 @@ def kram_kron(omega,dv):
 def fxc_longitudinal(dv,omega):
 
     im_fxc = im_fxc_longitudinal(omega,dv)
-    _,finf=exact_constraints(dv,x_only=False,param='PW92')
+    finf=high_freq(dv)
     if hasattr(omega,'__len__'):
         re_fxc = np.zeros(omega.shape)
         for iom,om in enumerate(omega):
@@ -124,7 +137,25 @@ def fxc_longitudinal(dv,omega):
             if terr['code'] == 0:
                 print(('WARNING, not converged for omega={:.4f}; last error {:.4e}').format(om,terr['error']))
     else:
-        re_fxc,terr = kram_kron(omega,dv['rs'])
+        re_fxc,terr = kram_kron(omega,dv)
+        if terr['code'] == 0:
+            print(('WARNING, not converged for omega={:.4f}; last error {:.4e}').format(omega,terr['error']))
+    return re_fxc/pi + finf + 1.j*im_fxc
+
+
+def fxc_longitudinal_multi_proc(dv,omega):
+
+    im_fxc = im_fxc_longitudinal(omega,dv)
+    finf=high_freq(dv)
+    fxc = np.zeros(omega.shape)
+    re_fxc = np.zeros(omega.shape)
+
+    pool = multiprocessing.Pool(processes=min(nproc,len(omega)))
+    trefxc = pool.starmap(kram_kron,[(om,dv) for om in omega])
+    pool.close()
+
+    for iom,om in enumerate(omega):
+        re_fxc[iom],terr = trefxc[iom]
         if terr['code'] == 0:
             print(('WARNING, not converged for omega={:.4f}; last error {:.4e}').format(om,terr['error']))
     return re_fxc/pi + finf + 1.j*im_fxc

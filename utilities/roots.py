@@ -1,3 +1,28 @@
+import numpy as np
+
+def bracket(fun,bds,nstep=500,vector=False,args=(),kwargs={}):
+
+    step = (bds[1]-bds[0])/nstep
+    ivals = []
+    if vector:
+        tmpl = np.arange(bds[0],bds[1],step)
+        funl = fun(tmpl,*args,**kwargs)
+        ofun = funl[0]
+        for istep in range(1,nstep):
+            if ofun*funl[istep] <= 0:
+                ivals.append([tmpl[istep-1],tmpl[istep]])
+            ofun = funl[istep]
+    else:
+        tmp = bds[0]
+        for istep in range(nstep):
+            cfun = fun(tmp,*args,**kwargs)
+            if istep == 0:
+                ofun = cfun
+            if ofun*cfun <= 0:
+                ivals.append([tmp-step,tmp])
+            ofun = cfun
+            tmp += step
+    return ivals
 
 def bisect(fun,bds,tol=1.e-6,maxstep=100,args=(),kwargs={}):
 
@@ -28,6 +53,6 @@ def bisect(fun,bds,tol=1.e-6,maxstep=100,args=(),kwargs={}):
             regs[0] = mid
         else:
             regs[1] = mid
-        if abs(spc) < tol*abs(mid) or abs(tmpm)<tol:
+        if abs(tmpm)<tol or abs(spc)<1.e-14:#abs(spc) < tol*abs(mid) or
             break
     return mid,tmpm

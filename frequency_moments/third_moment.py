@@ -11,7 +11,7 @@ from frequency_moments.frequency_moments import moment_parser
 from dft.lsda import ec_pw92
 from utilities.gauss_quad import gauss_kronrod
 from utilities.integrators import nquad
-import utilities.interpolators as interp
+import utilities.interpolators as interps
 #from mcp07 import chi_parser
 
 pi = settings.pi
@@ -21,13 +21,13 @@ k_max = 14.0
 if not path.isdir('./third_moment_sum_rule_data'):
     mkdir('./third_moment_sum_rule_data')
 
-def plotter():
+def third_moment_plotter():
     fsz = 16
-    clist=['tab:blue','tab:orange','tab:green','tab:red','tab:purple','tab:brown','tab:olive','tab:gray']
+    clist=settings.clist#['tab:blue','tab:orange','tab:green','tab:red','tab:purple','tab:brown','tab:olive','tab:gray']
     m3_sr = {}
     amax = {}
     for rs in settings.rs_list:
-        m3_sr[rs] = './third_moment_convergence/interp_19_jan_2021/rs_'+str(rs)+'_third_moment_sum_rule_'+settings.fxc+'.csv'
+        m3_sr[rs] = './third_moment_sum_rule_data/rs_'+str(rs)+'_third_moment_sum_rule_'+settings.fxc+'.csv'
         #m3_sr[rs] = './third_moment_sum_rule_data/rs_'+str(rs)+'_third_moment_sum_rule_'+settings.fxc+'.csv'
     fig,ax = plt.subplots(figsize=(8,6))
     bord = [1e20,-1e20]
@@ -64,7 +64,7 @@ def plotter():
     return
 
 def sq(q_l,rs):
-    if settings.fxc == 'MCP07' or settings.fxc == 'rMCP07':
+    if settings.fxc == 'MCP07' or settings.fxc == 'TC':
         wmetd = 'gk_adap'
     else:
         wmetd = 'adap'
@@ -165,11 +165,11 @@ def wrap_u_integrand(u,k,rs,q,sq,sq2,pars,interp,prec):
     #kf = (9.0*pi/4.0)**(1.0/3.0)/rs
     qmk = (q**2 + k**2 - 2*q*k*u)**(0.5)
     if interp=='spline':
-        s_qmk = interp.spline(qmk,sq[:,0],sq[:,1],sq2)
-        s_k_g = interp.spline(k,sq[:,0],sq[:,1],sq2)
+        s_qmk = interps.spline(qmk,sq[:,0],sq[:,1],sq2)
+        s_k_g = interps.spline(k,sq[:,0],sq[:,1],sq2)
     elif interp == 'linear':
-        s_qmk = interp.linear_interpolator(qmk,sq[:,0],sq[:,1])
-        s_k_g = interp.linear_interpolator(k,sq[:,0],sq[:,1])
+        s_qmk = interps.linear_interpolator(qmk,sq[:,0],sq[:,1])
+        s_k_g = interps.linear_interpolator(k,sq[:,0],sq[:,1])
     s_qmk[qmk<k_min]=0.0 # approximate S(q) as vanishing below some minimum
     #s_qmk[qmk>k_max] = extrap_fun(q,pars)
     if k < k_min:
@@ -300,18 +300,18 @@ def third_moment_driver(rs,q,sq,kc,sq2,ex_pars,interp='linear'):
                     for irow,row in enumerate(qmk):
                         #mask = (k_min <= row)# & (row <= k_max)
                         if interp=='spline':
-                            s_qmk[irow] = interp.spline(row,sq[:,0],sq[:,1],sq2)
+                            s_qmk[irow] = interps.spline(row,sq[:,0],sq[:,1],sq2)
                         elif interp == 'linear':
-                            s_qmk[irow] = interp.linear_interpolator(row,sq[:,0],sq[:,1])
+                            s_qmk[irow] = interps.linear_interpolator(row,sq[:,0],sq[:,1])
                         #s_qmk[irow][row < k_min] = 0.0 # approximate S(q) as vanishing below some minimum
                         #s_qmk[irow][row > k_max] = extrap_fun(row[row > k_max],ex_pars) # use the analytic representation of the extrapolation
                         if irow == 0:
                             krow = k_g[irow]
                             #mask2 = (k_min <= krow)# & (krow <= k_max)
                             if interp=='spline':
-                                s_k_g[irow] = interp.spline(krow,sq[:,0],sq[:,1],sq2)
+                                s_k_g[irow] = interps.spline(krow,sq[:,0],sq[:,1],sq2)
                             elif interp == 'linear':
-                                s_k_g[irow] = interp.linear_interpolator(krow,sq[:,0],sq[:,1])
+                                s_k_g[irow] = interps.linear_interpolator(krow,sq[:,0],sq[:,1])
                             #s_k_g[irow][krow < k_min] = 0.0
                             #s_k_g[irow][krow > k_min] = extrap_fun(krow[krow > k_min],ex_pars)
                         else:
@@ -366,10 +366,10 @@ def third_moment_parser(sq,kcd,ex_pars,interp='linear'):
 
     for rs in rs_l:
         if interp == 'spline':
-            sq2 = interp.natural_spline(sq[rs][:,0],sq[rs][:,1])
+            sq2 = interps.natural_spline(sq[rs][:,0],sq[rs][:,1])
         else:
             sq2 = np.zeros(1)
-        if settings.fxc == 'MCP07' or settings.fxc == 'rMCP07':
+        if settings.fxc == 'MCP07' or settings.fxc == 'TC':
             wmetd = 'gk_adap'
         else:
             wmetd = 'adap'
@@ -414,4 +414,4 @@ if __name__ == "__main__":
     #exit()
 
     #third_moment_calculation(interp='spline')
-    plotter()
+    third_moment_plotter()

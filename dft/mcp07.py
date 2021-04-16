@@ -1,8 +1,8 @@
 import numpy as np
 
-from settings import pi,rMCP07_pars,gki_param
-from alda import alda,lda_derivs
-from gki_fxc import gki_dynamic
+from settings import pi,TC_pars,gki_param
+from dft.alda import alda,lda_derivs
+from dft.gki_fxc import gki_dynamic
 from dft.qv_fxc import fxc_longitudinal as qv_fxc
 
 def mcp07_static(q,dv,param='PZ81'):
@@ -52,10 +52,10 @@ def mcp07_dynamic(q,omega,dv,axis='real',revised=False,pars={},param='PZ81'):
     if revised:
         if len(pars) > 0:
             fp = pars
-        elif len(pars) == 0 and len(rMCP07_pars) >0:
-            fp = rMCP07_pars
+        elif len(pars) == 0 and len(TC_pars) >0:
+            fp = TC_pars
         else:
-            raise SystemExit('rMCP07 kernel requires fit parameters!')
+            raise SystemExit('TC kernel requires fit parameters!')
         kscr = fp['a']*dv['kF']/(1.0 + fp['b']*dv['kF']**(0.5))
         #F1 = (fp['a'] + fp['b']*fp['c']*dv['rs'])/(1.0 + fp['c']*dv['rs'])*dv['rs']**2
         #rs_interp = (fp['a'] + fp['b']*fp['d']*dv['rs']**fp['c'])/(1.0 + fp['d']*dv['rs']**fp['c'])

@@ -14,7 +14,7 @@ def eps_c_plots(targ=None):
     'ALDA': nbs+ 'ALDA_eps_c_reference.csv'
      }
     if targ is not None:
-        fls['rMCP07'] = targ
+        fls['TC'] = targ
     label = {'MCP07': (68.82,0.0),
     'static MCP07': (39.73,0.001),
     'RPA': (71.66,-0.013),
@@ -23,7 +23,7 @@ def eps_c_plots(targ=None):
     }
     fig,ax = plt.subplots(figsize=(10,6))
     for ifxc,fxc in enumerate(fls):
-        if fxc != 'rMCP07':
+        if fxc != 'TC':
             rs,ec = np.transpose(np.genfromtxt(fls[fxc],delimiter=',',skip_header=1))
             if fxc == 'ALDA':
                 ec = ec[rs<=30.0]
@@ -49,7 +49,7 @@ def eps_c_plots(targ=None):
     if targ is not None:
         plt.show()
     else:
-        plt.savefig(base_str+'/../ec_plot.pdf',dpi=600,bbox_inches='tight')
+        plt.savefig(nbs+'/../eps_data/ec_plot.pdf',dpi=600,bbox_inches='tight')
     return
 
 

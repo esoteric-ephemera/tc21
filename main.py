@@ -1,39 +1,79 @@
 import numpy as np
 
 import settings
-from dft.lsda import ec_pw92
 from frequency_moments.frequency_moments import moment_calc
-from frequency_moments.third_moment import third_moment_calculation,plotter
+from frequency_moments.third_moment import third_moment_calculation,third_moment_plotter
 from fitting.fit_re_fxc_omega import hx_fit_main,kramers_kronig_plot
-from fitting.fit_ec import ec_fitting
+from fitting.fit_ec import ec_fitting,plot_TC
+from static_cdw.get_kf_critical import kf_crit_search,kf_crit_plots
+from plotters.qv_critical_rs import plot_qv_rs_crit
+from plotters.ghost_plasmon import plot_ghost_exciton
+from plotters.plot_kernel import fxc_plotter
+from plotters.qmc_data_plotter import plot_qmc_sq_dat
 
-if settings.routine == 'third moment':
+def main():
 
-    if settings.third_mom_pars['calc']:
-        third_moment_calculation(interp=settings.third_mom_pars['interp'])
-    if settings.third_mom_pars['plot']:
-        plotter()
+    if settings.routine == 'M3SR':
 
-elif settings.routine == 'moment':
+        if settings.third_mom_pars['calc']:
+            third_moment_calculation(interp=settings.third_mom_pars['interp'])
+        if settings.third_mom_pars['plot']:
+            third_moment_plotter()
 
-    moment_calc(settings.moment_pars['order'])
+    elif settings.routine == 'FMT':
 
-elif settings.routine == 'fit hx':
+        moment_calc(settings.moment_pars['order'])
 
-    apar,bpar,cpar,dpar = hx_fit_main()
-    if settings.fit_pars['plot']:
-        kramers_kronig_plot(pars=[apar,bpar,cpar,dpar])
+    elif settings.routine == 'HXFIT':
 
-elif settings.routine == 'fit ec':
+        apar,bpar,cpar,dpar = hx_fit_main()
+        if settings.gen_opts['plot']:
+            kramers_kronig_plot(pars=[apar,bpar,cpar,dpar])
 
-    if settings.fit_pars['fit']:
-        pars,epsc,errors=ec_fitting()
+    elif settings.routine == 'ECFIT':
+
+        if settings.gen_opts['calc']:
+            pars,epsc,errors=ec_fitting()
+        else:
+            pars = settings.TC_pars
+
+        if settings.gen_opts['plot']:
+            tps = (pars['a'],pars['b'],pars['c'],pars['d'])
+            plot_TC(tps)
+
+    elif settings.routine == 'KFC':
+
+        if settings.gen_opts['calc']:
+            kf_crit_search()
+        if settings.gen_opts['plot']:
+            kf_crit_plots()
+
+    elif settings.routine == 'QVRSC':
+
+        plot_qv_rs_crit(regen_dat=settings.gen_opts['calc'])
+
+    elif settings.routine == 'GHPLAS':
+
+        plot_ghost_exciton(regen_qv_dat=settings.gen_opts['calc'])
+
+    elif settings.routine == 'PKER':
+
+        for rs in settings.rs_list:
+            fxc_plotter(rs)
+
+    elif settings.routine == 'PQMC':
+
+        plot_qmc_sq_dat()
+
+    elif settings.routine == 'testing':
+        # space just for testing unfinished parts of routines
+
+        return
     else:
-        pars = settings.rMCP07_pars
+        raise ValueError('Unknown routine, ',settings.routine)
 
-    if settings.fit_pars['plot']:
-        tps = (pars['a'],pars['b'],pars['c'],pars['d'])
-        plot_rMCP07(tps)
+    return
 
-else:
-    raise ValueError('Unknown routine, ',settings.routine)
+if __name__ == "__main__":
+
+    main()

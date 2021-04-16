@@ -3,7 +3,7 @@ import numpy as np
 import settings
 from dft.alda import alda
 from dft.gki_fxc import gki_dynamic
-from dft.qv_fxc import fxc_longitudinal as qv_fxc
+from dft.qv_fxc import fxc_longitudinal, fxc_longitudinal_multi_proc
 from dft.mcp07 import mcp07_static,mcp07_dynamic,qv_mcp07
 
 pi = settings.pi
@@ -75,14 +75,16 @@ def chi_parser(z,omega,ixn,rs,wfxc,reduce_omega=False,imag_freq=False,ret_eps=Fa
         fxc = mcp07_dynamic(q,om,dvars,axis=which_axis,param='PZ81')
     elif wfxc == 'static MCP07':
         fxc,_,_ = mcp07_static(q,dvars,param='PZ81')
-    elif wfxc == 'rMCP07':
+    elif wfxc == 'TC':
         fxc = mcp07_dynamic(q,om,dvars,axis=which_axis,revised=True,pars=pars,param=LDA)
     elif wfxc == 'GKI':
         fxc = gki_dynamic(dvars,om,axis=which_axis,revised=True,param=LDA,use_par=settings.gki_param)
     elif wfxc == 'QV':
-        fxc = qv_fxc(dvars,om)
+        fxc = fxc_longitudinal(dvars,om)
+    elif wfxc == 'QVmulti':
+        fxc = fxc_longitudinal_multi_proc(dvars,om)
     elif wfxc == 'QV_MCP07':
-        fxc = qv_mcp07(q,omega,dv)
+        fxc = qv_mcp07(q,omega,dvars)
     else:
         raise SystemExit('WARNING, unrecognized XC kernel',wfxc)
 

@@ -1,5 +1,5 @@
 import numpy as np
-from os import path
+from os import path,mkdir
 from math import floor,ceil
 import matplotlib.pyplot as plt
 import multiprocessing as mp
@@ -7,7 +7,9 @@ import multiprocessing as mp
 import settings
 from utilities.gauss_quad import gauss_quad
 from dft.chi import chi_parser
+from dft.qv_fxc import fxc_longitudinal,density_variables
 from utilities.integrators import nquad
+from utilities.interpolators import spline,natural_spline
 
 pi = settings.pi
 
@@ -95,25 +97,6 @@ def s_q_adap(rs,q_l,prec):
                 s[iq]=tmp*(3*pi)/(2*kf)
     return s
 
-def grid_augmentor(q,lbd,sgrid,swg):
-    spc = .02
-
-    omega_c_max = 80.0 # cutoff in units of omega_p(0) for q = 3, estimated from converged rs = 69 values
-    omega_c_min = 3.0 # cutoff for q --> 0, estimated in same way
-    ubd = (omega_c_max - omega_c_min)/3.0*q + omega_c_min # interpolate along these
-
-    if not hasattr(sgrid,'__len__') and sgrid == None:
-        sgrid = np.zeros(0)
-        swg = np.zeros(0)
-        ivls = np.arange(0.0,ubd,spc)
-    else:
-        ivls = np.arange(lbd,ubd,spc)
-
-    for ivl in ivls:
-        sgrid = np.append(sgrid, spc*pts + ivl)
-        swg = np.append(swg,spc*wg)
-    return sgrid,swg,ubd
-
 def frequency_moment(rs,q_l,order,prec):
 
     n = 3.0/(4.0*pi*rs**3)
@@ -170,35 +153,99 @@ def gk_freq_moment(rs,q_l,order,prec):
         #    print('warning, GK integration order',order,' not converged for q=',q,'last error=',err2['error'],'rescaled')
     return moment*ef*(ef/wp)**(order)/(pi*n)
 
+def qv_moments(rs,q,order,prec=1.e-8):
+    if not path.isdir('./freq_data/qv_tab_data'):
+        mkdir('./freq_data/qv_tab_data')
+    tab_file = './freq_data/qv_tab_data/fxc_qv_rs_{:}.csv'.format(rs)
+    dv = density_variables(rs)
+    if path.isfile(tab_file):
+        ftab,fxctab_re,fxctab_im = np.transpose(np.genfromtxt(tab_file,delimiter=',',skip_header=1))
+        fxctab = np.zeros(ftab.shape,dtype='complex')
+        fxctab.real = fxctab_re
+        fxctab.imag = fxctab_im
+    else:
+        ftab = np.linspace(1.e-6,50,500)
+        fxctab = np.zeros(ftab.shape,dtype='complex')
+        if settings.nproc > 1 and hasattr(q,'__len__'):
+            pool = mp.Pool(processes=min(settings.nproc,len(ftab)))
+            fxct = pool.starmap(fxc_longitudinal,[(dv,om) for om in ftab])
+            pool.close()
+            for isqt in range(ftab.shape[0]):
+                fxctab[isqt] = fxct[isqt]
+        else:
+            fxctab = fxc_longitudinal(dv,freqs)
+        np.savetxt(tab_file,np.transpose((ftab,fxctab.real,fxctab.imag)),delimiter=',',header='omega,Re f_xc_QV(omega), Im f_xc_QV(omega)')
+    qv2 = np.zeros(ftab.shape,dtype='complex')
+    qv2.real = natural_spline(ftab,fxctab.real)
+    qv2.imag = natural_spline(ftab,fxctab.imag)
 
-def moment_parser(rs,q,order,prec=1.e-8,method='original'):
     if settings.nproc > 1 and hasattr(q,'__len__'):
         pool = mp.Pool(processes=min(settings.nproc,len(q)))
-        if method=='original':
-            tout = pool.starmap(frequency_moment,[(rs,aq,order,prec) for aq in q])
-        elif method == 'adap' and order == 0.0:
-            tout = pool.starmap(s_q_adap,[(rs,aq,prec) for aq in q])
-        elif method == 'gk_adap':
-            tout = pool.starmap(gk_freq_moment,[(rs,aq,order,prec) for aq in q])
+        tout = pool.starmap(qv_spline_integration,[(ftab,fxctab,qv2,rs,aq,order,prec) for aq in q])
         pool.close()
-        moment = np.zeros(q.shape)
-        for itout,anout in enumerate(tout):
-            moment[itout] = anout
+        moment = np.zeros(q.shape[0])
+        for iq in range(q.shape[0]):
+            moment[iq] = tout[iq]
     else:
-        if method=='original':
-            moment = frequency_moment(rs,q,order,prec)
-        elif method == 'adap' and order == 0.0:
-            moment = s_q_adap(rs,q,prec)
-        elif method == 'gk_adap':
-            moment = gk_freq_moment(rs,q,order,prec)
+        moment = qv_spline_integration(ftab,fxctab,qv2,q,rs,order,prec)
+    return moment/dv['wp0']**order
+
+def qv_spline_integration(freq_tab,qv_tab,ddqv,q,rs,order,prec):
+    intgrl,error= nquad(qv_spline_integrand,(freq_tab[0],freq_tab[-1]),'global_adap',{'itgr':'GK','npts':5,'prec':prec,'err_meas':'abs_diff','inc_grid':0},args=(freq_tab,qv_tab,ddqv,q,rs,order))
+    if error['code']<=0:
+        print('warning, GK integration for order ',order,' moment not converged for q=',q,'last error=',error['error'],'; code',error['code'])
+    return intgrl
+
+def qv_spline_integrand(freq,freq_tab,qv_tab,ddqv,q,rs,order):
+    fxc = np.zeros(freq.shape[0],dtype='complex')
+    fxc.real = spline(freq,freq_tab,qv_tab.real,ddqv.real)
+    fxc.imag = spline(freq,freq_tab,qv_tab.imag,ddqv.imag)
+    wp = (3/rs**3)**(0.5)
+    chi0 = chi_parser(0.5*q,freq+1.e-10j*wp,0.0,rs,'chi0',reduce_omega=False)
+    kf = (9*pi/4)**(1/3)/rs
+    chi = chi0/(1.0 - (4*pi/(q*kf)**2 + fxc)*chi0)
+    sqw = -4*rs**3/3*chi.imag
+    return freq**order*sqw
+
+
+def moment_parser(rs,q,order,prec=1.e-8,method='original'):
+    if settings.fxc == 'QV':
+        moment = qv_moments(rs,q,order,prec=prec)
+    else:
+        if settings.nproc > 1 and hasattr(q,'__len__'):
+
+            pool = mp.Pool(processes=min(settings.nproc,len(q)))
+            if method=='original':
+                tout = pool.starmap(frequency_moment,[(rs,aq,order,prec) for aq in q])
+            elif method == 'adap' and order == 0.0:
+                tout = pool.starmap(s_q_adap,[(rs,aq,prec) for aq in q])
+            elif method == 'gk_adap':
+                tout = pool.starmap(gk_freq_moment,[(rs,aq,order,prec) for aq in q])
+            pool.close()
+            moment = np.zeros(q.shape)
+            for itout,anout in enumerate(tout):
+                moment[itout] = anout
+        else:
+            if method=='original':
+                moment = frequency_moment(rs,q,order,prec)
+            elif method == 'adap' and order == 0.0:
+                moment = s_q_adap(rs,q,prec)
+            elif method == 'gk_adap':
+                moment = gk_freq_moment(rs,q,order,prec)
     return moment
 
 def moment_calc(order):
 
     q_l = np.arange(settings.q_bounds['min'],settings.q_bounds['max'],settings.q_bounds['step'])
     for rs in settings.rs_list:
-        momnt = moment_parser(rs,q_l,order,prec=settings.moment_pars['prec'],method=settings.moment_pars['method'])
-        np.savetxt('./freq_data/{:}_moment_{:}_rs_{:}.csv'.format(settings.fxc,order,rs),np.transpose((q_l,sq)),delimiter=',',header='q,<omega**M>/wp(0)**M')
+        moment = moment_parser(rs,q_l,order,prec=settings.moment_pars['prec'],method=settings.moment_pars['method'])
+        if order > 0:
+            htext = 'q,<w**{:}>/wp(0)**{:}'.format(order,order)
+            fname = './freq_data/{:}_moment_{:}_rs_{:}.csv'.format(settings.fxc,order,rs)
+        else:
+            htext = 'q,S(q)'
+            fname = './freq_data/{:}_Sq_rs_{:}.csv'.format(settings.fxc,rs)
+        np.savetxt(fname,np.transpose((q_l,moment)),delimiter=',',header=htext)
     return
 
 if __name__ == "__main__":
@@ -229,6 +276,6 @@ if __name__ == "__main__":
     ax.set_xlabel('$q/k_F$',fontsize=18)
     ax.set_ylabel('$S(q)$',fontsize=18)
     ax.tick_params(axis='both',labelsize=16)
-    plt.title('MCP07 (dashed) and rMCP07 (solid) $S(q)$',fontsize=18)
+    plt.title('MCP07 (dashed) and TC21 (solid) $S(q)$',fontsize=18)
     ax.legend(fontsize=16)
     plt.show()

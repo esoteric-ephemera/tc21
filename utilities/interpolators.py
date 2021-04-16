@@ -53,6 +53,26 @@ def linear_interpolator(x,x_tab,y_tab):
     slope = (y_tab[hi]-y_tab[hi-1])/(x_tab[hi] - x_tab[hi-1])
     return slope*(x-x_tab[hi-1]) + y_tab[hi-1]
 
+def bilinear_interp(xc,yc,xtab,ytab,ztab):
+
+    # xtab and ytab should be 1D
+    # ztab should be a matrix with dimensions len(ytab) rows and len(xtab) columns
+
+    xhi = np.searchsorted(xtab,xc,side='left')
+    yhi = np.searchsorted(ytab,yc,side='left')
+    x1 = xtab[xhi-1]
+    y1 = ytab[yhi-1]
+
+    dx = (xc - x1)/(xtab[xhi] - x1)
+    dy = (yc - y1)/(ytab[yhi] - y1)
+
+    zinterp = np.zeros((xc.shape[0],yc.shape[0]))
+    for ix in range(xc.shape[0]):
+        zinterp[ix] = (1-dx[ix])*( (1-dy)*ztab[xhi[ix]-1,yhi-1] + dy*ztab[xhi[ix]-1,yhi] ) \
+            + dx[ix]* ( (1-dy)*ztab[xhi[ix],yhi-1] + dy*ztab[xhi[ix],yhi] )
+    return zinterp
+
+
 if __name__=="__main__":
 
     kc_d = {4.0: 2.97, 69.0: 3.92}#6.65}#
