@@ -1,5 +1,5 @@
 
-routine='M3SR'
+routine='PDISP'
 
 """
     routine options:
@@ -23,7 +23,7 @@ routine='M3SR'
 """
 
 # enter as scalar or vector
-rs_list = [4,10,30,69,100]#[1,2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,100]
+rs_list = [1,4,10,30,69]#[1,2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,100]
 if not hasattr(rs_list,'__len__'):
     rs_list = [rs_list]
 
@@ -37,10 +37,11 @@ LDA = 'PW92'
 
 q_bounds = {'min':0.01,'max':3.01,'step':0.01} # bounds and stepsize for wavevectors
 
-moment_pars = {'order':0.0, 'prec':1.e-8,
+moment_pars = {'calc':False,'sq_plots': 'single',
+'order':0.0, 'prec':1.e-8,
 'method':'gk_adap' # method can be gk_adap (Gauss-Kronrod), original (from PNAS), or adap when order = 0
 }
-third_mom_pars = {'calc':True,'plot':True,
+third_mom_pars = {'calc':False,'plot':True,
 'interp': 'spline' # interp can be spline or linear
 }
 gen_opts = {'calc':False, 'plot': True}

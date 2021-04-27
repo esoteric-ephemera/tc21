@@ -248,6 +248,56 @@ def moment_calc(order):
         np.savetxt(fname,np.transpose((q_l,moment)),delimiter=',',header=htext)
     return
 
+
+def sq_plots():
+
+    fig,ax = plt.subplots(figsize=(8,6))
+
+    for irs,rs in enumerate(settings.rs_list):
+        q_l,sq = np.transpose(np.genfromtxt('./freq_data/{:}_Sq_rs_{:}.csv'.format(settings.fxc,rs),delimiter=',',skip_header=1))
+        plt.plot(q_l,sq,color=settings.clist[irs],linewidth=2.5,label='$r_s={:}$'.format(rs))
+        if settings.fxc == 'TC':
+            pos_dict = {4: (.5,.4), 69: (1.55,.3) }
+            if rs not in pos_dict:
+                def_pos = (q_l[(len(q_l)-len(q_l)%2)//2],sq[(len(q_l)-len(q_l)%2)//2])
+                pos_dict[rs] = def_pos
+            ax.annotate('$r_s={:}$'.format(rs),pos_dict[rs],color=settings.clist[irs],fontsize=20)
+
+    ax.set_xlim([0.0,3.0])
+    ax.set_ylim([0.0,min(20,ax.get_ylim()[1])])
+    ax.hlines(1.0,plt.xlim()[0],plt.xlim()[1],linestyle='--',color='gray')
+    ax.set_xlabel('$q/k_F$',fontsize=24)
+    ax.set_ylabel('$S(q)$',fontsize=24)
+    ax.tick_params(axis='both',labelsize=20)
+
+    if settings.fxc != 'TC':
+        ax.legend(fontsize=20,loc='lower right')
+    #plt.show()
+    plt.savefig('./figs/Sq_{:}.pdf'.format(settings.fxc),dpi=600,bbox_inches='tight')
+    return
+
+def sq_tc_mcp07_comp_plot():
+
+    fig,ax = plt.subplots(figsize=(8,6))
+
+    for irs,rs in enumerate(settings.rs_list):
+        q_l,sq = np.transpose(np.genfromtxt('./freq_data/TC_Sq_rs_{:}.csv'.format(rs),delimiter=',',skip_header=1))
+        plt.plot(q_l,sq,color=settings.clist[irs],linewidth=2.5,label='$r_s={:}$'.format(rs))
+        q_l,sq = np.transpose(np.genfromtxt('./freq_data/MCP07_Sq_rs_{:}.csv'.format(rs),delimiter=',',skip_header=1))
+        plt.plot(q_l,sq,color=settings.clist[irs],linewidth=2.5,linestyle='--')
+    ax.set_xlim([0.0,3.0])
+    ax.set_ylim([0.0,min(20,ax.get_ylim()[1])])
+    ax.hlines(1.0,plt.xlim()[0],plt.xlim()[1],linestyle='--',color='gray')
+    ax.set_xlabel('$q/k_F$',fontsize=24)
+    ax.set_ylabel('$S(q)$',fontsize=24)
+    ax.tick_params(axis='both',labelsize=20)
+    plt.title('MCP07 (dashed) and TC21 (solid) $S(q)$',fontsize=20)
+    ax.legend(fontsize=20)
+    #plt.show()
+    plt.savefig('./figs/Sq_comparison.pdf',dpi=600,bbox_inches='tight')
+    return
+
+
 if __name__ == "__main__":
 
     fig,ax = plt.subplots(figsize=(10,6))

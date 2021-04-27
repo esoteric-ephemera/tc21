@@ -82,10 +82,12 @@ def gki_dynamic_real_freq(dv,u,x_only=False,revised=False,param='PZ81',dimension
         h0 = 1.0/gam
         hx = h0*(1.0 - aj*xk**2)
         fac = (h0*aj)**(4.0/7.0)
-        h_mag = ((1.0 + fac*xk.real**2-fac*xk.imag**2)**2 + (2*fac*xk.real*xk.imag)**2)**(0.5)
-        hx /= (1.0 + (h0*aj)**(4.0/7.0)*xk**2)**(7.0/4.0)
+        hx /= (1.0 + fac*xk**2)**(7.0/4.0)
 
-    fxcu = np.zeros(u.shape,dtype=complex)
+    if hasattr(u,'__len__'):
+        fxcu = np.zeros(u.shape,dtype='complex')
+    else:
+        fxcu = 0.0+0.0j
     if dimensionless:
         fxcu.real = hx
         fxcu.imag = gx
@@ -97,11 +99,14 @@ def gki_dynamic_real_freq(dv,u,x_only=False,revised=False,param='PZ81',dimension
 
 def gki_dynamic(dv,u,axis='real',x_only=False,revised=False,param='PZ81',use_par=False):
 
+    ret_scalar = False
     if not hasattr(u,'__len__'):
         if not hasattr(dv['rs'],'__len__'):
+            ret_scalar = True
             u = u*np.ones(1)
         else:
-            u = u*np.ones(dv['rs'].shape)
+            if hasattr(dv['rs'],'__len__'):
+                u = u*np.ones(dv['rs'].shape)
     if axis == 'real':
         fxcu = gki_dynamic_real_freq(dv,u,x_only=x_only,revised=revised,param=param)
     elif axis == 'imag':
@@ -137,4 +142,51 @@ def gki_dynamic(dv,u,axis='real',x_only=False,revised=False,param='PZ81',use_par
                 if err['code'] == 0:
                     print(('WARNING, analytic continuation failed; error {:}').format(err['error']))
                 fxcu[itu] = -cc*bn[itu]**(3.0/4.0)*fxcu[itu]/pi + finf[itu]
+    if ret_scalar:
+        return fxcu[0]
     return fxcu
+
+
+def gki_real_freq_taylor_series(dv,u,uc,revised=False,param='PZ81'):
+
+    bn,finf = exact_constraints(dv,x_only=False,param=param)
+    bnh = bn**(0.5)
+    xk = bnh*uc
+
+    gx = xk/(1 + xk**2)**(5/4)
+    dgx = (1 - 3/2*xk**2)/(1.0 + xk**2)**(9/4)
+
+    if revised:
+        apar = 0.1756
+        bpar = 1.0376
+        cpar = 2.9787
+        powr = 7.0/(2*cpar)
+        hx = 1/gam*(1.0 - apar*xk**2)
+        hxden = (1 + bpar*xk**2 + (apar/gam)**(1/powr)*xk**cpar)
+        hx /= hxden**powr
+
+        dhx1 = -2*apar*xk
+        dhx2 = -powr*(2*bpar*xk + cpar*(apar/gam)**(1/powr)*xk**(cpar-1))/hxden
+        dhx = 1/gam*(dhx1 + dhx2)/hxden**powr
+    else:
+        aj = 0.63
+        h0 = 1/gam
+        hx = h0*(1 - aj*xk**2)
+        fac = (h0*aj)**(4/7)
+        hxden = (1 + fac*xk**2)
+        hx /= hxden**(7/4)
+
+        dhx = h0*(-2*aj*xk - 7/2*fac*xk*(1 - aj*xk**2)/hxden)/hxden**(7/4)
+
+    fxcu = finf - cc*bn**(3/4)*(hx + 1.j*gx)
+    """
+        Cauchy-Riemman conditions for derivative of f(z) = u(x,y) + i v(x,y)
+        such that z = x + i y stipulate that
+        f'(z) = 1/2 [ du/dx + i dv/dx ] along the real axis
+
+        this analytic continuation is specifically for frequencies just below
+        the real axis, hence the extra factor of 0.5 in d_fxc_du
+    """
+    d_fxc_du = - 0.5*cc*bn**(3/4)*(dhx + 1.j*dgx)*bnh
+
+    return fxcu + d_fxc_du*(u - uc)

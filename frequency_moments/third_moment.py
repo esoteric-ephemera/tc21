@@ -22,7 +22,8 @@ if not path.isdir('./third_moment_sum_rule_data'):
     mkdir('./third_moment_sum_rule_data')
 
 def third_moment_plotter():
-    fsz = 16
+    fsz = 24
+    linestyles=['-','--','-.']
     clist=settings.clist#['tab:blue','tab:orange','tab:green','tab:red','tab:purple','tab:brown','tab:olive','tab:gray']
     m3_sr = {}
     amax = {}
@@ -37,14 +38,16 @@ def third_moment_plotter():
         rel_err = (m3-sr)/(m3+sr)
         bord[0] = min(bord[0],rel_err.min())
         bord[1] = max(bord[1],rel_err.max())
-        ax.plot(qq,rel_err,color=clist[iter],linestyle='-',linewidth=2,label='$r_s=$'+str(rs))
+        ax.plot(qq,rel_err,color=clist[iter],linewidth=2.5,label='$r_s=$'+str(rs),linestyle=linestyles[iter%3])
         """
         ax.plot(qq,m3,color=clist[iter],linestyle='-',linewidth=2,markersize=0,marker='o',label='$r_s=$'+str(rs))
         ax.plot(qq,sr,color=clist[iter],linestyle='--')
         """
         maxind = np.argmax(np.abs(rel_err))
         amax[rs] = [qq[maxind],rel_err[maxind]]
-    print(amax)
+    print('rs     q_MURE      MURE')
+    for rs in amax:
+        print(('{:}     {:}     {:}').format(rs,amax[rs][0],amax[rs][1]))
     """
     plt.yscale('log')
     ax.set_yticks([10**i for i in range(-8,3)])
@@ -53,14 +56,14 @@ def third_moment_plotter():
     ax.yaxis.set_minor_formatter(ticker.NullFormatter())
     """
     ax.set_ylim([1.05*bord[0],1.05*bord[1]])
-    ax.set_xlabel('$q/k_F$',fontsize=fsz)
+    ax.set_xlabel('$q/k_F$',fontsize=24)
     ax.set_xlim([0.0,3.0])
-    ax.tick_params(axis='both',labelsize=fsz*.8)
-    ax.legend(fontsize=fsz)
+    ax.tick_params(axis='both',labelsize=20)
+    ax.legend(fontsize=20)
     #plt.title('[3rd moment (solid) or sum rule (dashed)]$/[\omega_p(0)]^3$',fontsize=fsz)
-    plt.title('$(\Sigma_3^L - \Sigma_3^R)/(\Sigma_3^L + \Sigma_3^R)$',fontsize=fsz)
-    #plt.savefig(base_str+'/m3_sr.pdf',dpi=300,bbox_inches='tight')
-    plt.show()
+    plt.title('$(\Sigma_3^L - \Sigma_3^R)/(\Sigma_3^L + \Sigma_3^R)$',fontsize=24)
+    plt.savefig('./figs/m3_sr_{:}.pdf'.format(settings.fxc),dpi=600,bbox_inches='tight')
+    #plt.show()
     return
 
 def sq(q_l,rs):

@@ -12,6 +12,23 @@ pi = settings.pi
 
 def chi_parser(z,omega,ixn,rs,wfxc,reduce_omega=False,imag_freq=False,ret_eps=False,pars={},LDA='PZ81'):
 
+    """
+        + z = q/(2 kF)
+        + omega is the frequency, in atomic units
+        + ixn is lambda, the coupling constant. Note that "lambda" is a Python
+            defined function, so we can't use that name here
+        + rs is the jellium density parameter, in bohr
+        + wfxc selects the XC kernel
+            + LDA (optional) selects either the Perdew-Zunger 1981 (PZ81) or
+                Perdew-Wang 1992 (PW92) ALDA
+        + reduce_omega (logical, optional) = True uses omega/eps_F instead of
+            omega as the frequency variable (useful for integration)
+        + imag_freq (logical, optional) selects imaginary frequency axis when needed
+        + ret_eps (logical, optional) returns the dielectric function
+            1 - [v_c(q) + f_xc(q,omega) ] chi_0(q,omega)
+        + pars (dictionary, optional) are parameters for novel kernels
+    """
+
     dvars = {}
     q_ixn_vec = hasattr(ixn,'__len__')
     if q_ixn_vec:
@@ -106,6 +123,10 @@ def chi_parser(z,omega,ixn,rs,wfxc,reduce_omega=False,imag_freq=False,ret_eps=Fa
 
 
 def lindhard(z,uu):
+
+    """
+        Eq. 3.6 of Lindhard's paper
+    """
 
     zu1 = z - uu + 0.0j
     zu2 = z + uu + 0.0j

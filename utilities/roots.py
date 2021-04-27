@@ -56,3 +56,34 @@ def bisect(fun,bds,tol=1.e-6,maxstep=100,args=(),kwargs={}):
         if abs(tmpm)<tol or abs(spc)<1.e-14:#abs(spc) < tol*abs(mid) or
             break
     return mid,tmpm
+
+def newton_raphson_2d(fun,init,tol=1.e-6,maxstep=1000,h=1.e-6,args=(),kwargs={}):
+
+    x0 = init
+
+    nvec = len(x0)
+
+    suc = {'code':0, 'res': np.zeros(nvec),'steps':0}
+
+    for suc['steps'] in range(maxstep):
+
+        f00 = fun(x0)
+
+        if np.all(np.abs(f00) < tol):
+            suc['code']=1
+            suc['res'] = f00
+            return x0,suc
+        f10 = fun(np.asarray([x0[0]+h,x0[1]]))
+        f01 = fun(np.asarray([x0[0],x0[1]+h]))
+        j00 = (f10[0] - f00[0])/h
+        j10 = (f10[1] - f00[1])/h
+        j01 = (f01[0] - f00[0])/h
+        j11 = (f01[1] - f00[1])/h
+
+        jdet = j00*j11 - j01*j10
+        dx = np.asarray([j11*f00[0] - j01*f00[1],-j10*f00[0] + j00*f00[1]])/jdet
+        x0 -= dx
+    if suc['steps'] == maxstep-1:
+        suc['code']=0
+        suc['res'] = f00
+        return x0,suc

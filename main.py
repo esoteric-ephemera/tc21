@@ -1,7 +1,7 @@
 import numpy as np
 
 import settings
-from frequency_moments.frequency_moments import moment_calc
+from frequency_moments.frequency_moments import moment_calc,sq_plots,sq_tc_mcp07_comp_plot
 from frequency_moments.third_moment import third_moment_calculation,third_moment_plotter
 from fitting.fit_re_fxc_omega import hx_fit_main,kramers_kronig_plot
 from fitting.fit_ec import ec_fitting,plot_TC
@@ -10,6 +10,7 @@ from plotters.qv_critical_rs import plot_qv_rs_crit
 from plotters.ghost_plasmon import plot_ghost_exciton
 from plotters.plot_kernel import fxc_plotter
 from plotters.qmc_data_plotter import plot_qmc_sq_dat
+from plotters.plasmon_dispersion import plasmon_dispersion
 
 def main():
 
@@ -22,7 +23,12 @@ def main():
 
     elif settings.routine == 'FMT':
 
-        moment_calc(settings.moment_pars['order'])
+        if settings.moment_pars['calc']:
+            moment_calc(settings.moment_pars['order'])
+        if settings.moment_pars['sq_plots']=='single':
+            sq_plots()
+        elif settings.moment_pars['sq_plots']=='comp':
+            sq_tc_mcp07_comp_plot()
 
     elif settings.routine == 'HXFIT':
 
@@ -64,6 +70,10 @@ def main():
     elif settings.routine == 'PQMC':
 
         plot_qmc_sq_dat()
+
+    elif settings.routine == 'PDISP':
+
+        plasmon_dispersion()
 
     elif settings.routine == 'testing':
         # space just for testing unfinished parts of routines
