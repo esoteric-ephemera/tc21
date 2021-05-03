@@ -71,7 +71,7 @@ def mcp07_dynamic(q,omega,dv,axis='real',revised=False,pars={},param='PZ81'):
 
     return fxc
 
-def qv_mcp07(q,omega,dv,axis='real',revised=False,intgrid=[],intwg=[]):
+def qv_mcp07(q,omega,dv,axis='real',revised=False,pars={},intgrid=[],intwg=[]):
 
     fxc_q,f0_gki,akn = mcp07_static(q,dv,param='PW92')
     f0_qv = qv_fxc(0.0,dv,axis=axis,ugrid=intgrid,uwg=intwg)

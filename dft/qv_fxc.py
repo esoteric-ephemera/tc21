@@ -1,5 +1,6 @@
 import numpy as np
 import multiprocessing
+from os.path import isfile
 
 from settings import pi,nproc
 from dft.alda import alda,lda_derivs
@@ -64,6 +65,20 @@ def high_freq(dv):
     return fxc_inf
 
 def get_qv_pars(dv,use_mu_xc=True):
+
+    if hasattr(dv['rs'],'__len__'):
+        nrs = len(dv['rs'])
+        a3l = np.zeros(nrs)
+        b3l = np.zeros(nrs)
+        g3l = np.zeros(nrs)
+        o3l = np.zeros(nrs)
+        for irs,ars in enumerate(dv['rs']):
+            a3l[irs],b3l[irs],g3l[irs],o3l[irs] = get_qv_pars_single(density_variables(ars),use_mu_xc=use_mu_xc)
+    else:
+        a3l,b3l,g3l,o3l = get_qv_pars_single(dv,use_mu_xc=use_mu_xc)
+    return a3l,b3l,g3l,o3l
+
+def get_qv_pars_single(dv,use_mu_xc=True):
 
     c3l = 23/15 # just below Eq. 13
 
@@ -196,10 +211,10 @@ def fxc_longitudinal_fixed_grid(omega,dv,grid=[],wg=[]):
         inf_grid = grid
         inf_wg = wg
     else:
-        inf_grid,inf_wg = make_grid(def_pts=200,cut_pt=50*dv['wp0'])
+        wpuscl = (3/dv['brs']**3)**(0.5)
+        inf_grid,inf_wg = make_grid(def_pts=200,cut_pt=50*wpuscl)
 
     qvpars = get_qv_pars(dv)
-    wcut = max(dv['wp0'],np.abs(qvpars[2]).max())
     im_qv = im_fxc_longitudinal(omega,dv,pars=qvpars)
     finf = high_freq(dv)
 
@@ -222,7 +237,8 @@ def fxc_qv_ifreq_fixed_grid(omega,dv,grid=[],wg=[]):
         inf_grid = grid
         inf_wg = wg
     else:
-        inf_grid,inf_wg = make_grid(def_pts=200,cut_pt=50*dv['wp0'])
+        wpuscl = (3/dv['brs']**3)**(0.5)
+        inf_grid,inf_wg = make_grid(def_pts=200,cut_pt=50*wpuscl)
 
     dinf_grid = np.concatenate((inf_grid,-inf_grid))
     dinf_wg = np.concatenate((inf_wg,inf_wg))

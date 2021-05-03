@@ -71,6 +71,7 @@ def chi_parser(z,omega,ixn,rs,wfxc,reduce_omega=False,imag_freq=False,ret_eps=Fa
 
     dvars['n'] = 3.0/(4.0*pi*dvars['rs']**3)
     dvars['rsh'] = dvars['rs']**(0.5)
+    dvars['wp0'] = (3/dvars['rs']**3)**(0.5)
 
     if imag_freq:
         which_axis = 'imag'
@@ -103,7 +104,7 @@ def chi_parser(z,omega,ixn,rs,wfxc,reduce_omega=False,imag_freq=False,ret_eps=Fa
     elif wfxc == 'QV_MCP07':
         fxc = qv_mcp07(q,om,dvars,axis=which_axis,revised=False)
     elif wfxc == 'QV_TC':
-        fxc = qv_mcp07(q,om,dvars,axis=which_axis,revised=True)
+        fxc = qv_mcp07(q,om,dvars,axis=which_axis,revised=True,pars=pars)
     else:
         raise SystemExit('WARNING, unrecognized XC kernel',wfxc)
 

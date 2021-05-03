@@ -1,5 +1,5 @@
 
-routine='testing'
+routine='ECFIT'
 
 """
     routine options:
