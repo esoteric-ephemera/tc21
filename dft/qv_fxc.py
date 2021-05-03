@@ -4,6 +4,7 @@ import multiprocessing
 from settings import pi,nproc
 from dft.alda import alda,lda_derivs
 from utilities.integrators import nquad
+from utilities.gauss_quad import gauss_quad
 from utilities.roots import bisect,bracket
 from utilities.special_funcs import erf
 from utilities.interpolators import natural_spline
@@ -107,9 +108,12 @@ def get_qv_pars(dv,use_mu_xc=True):
     o3l = 1 - 1.5*g3l
     return a3l,b3l,g3l,o3l
 
-def im_fxc_longitudinal(omega,dv):
+def im_fxc_longitudinal(omega,dv,pars=()):
 
-    a3,b3,g3,om3 = get_qv_pars(dv)
+    if len(pars)==0:
+        a3,b3,g3,om3 = get_qv_pars(dv)
+    else:
+        a3,b3,g3,om3 = pars
 
     wp0 = (3/dv['rs']**3)**(0.5)
     wt = omega/(2*wp0)
@@ -160,6 +164,99 @@ def fxc_longitudinal_multi_proc(dv,omega):
             print(('WARNING, not converged for omega={:.4f}; last error {:.4e}').format(om,terr['error']))
     return re_fxc/pi + finf + 1.j*im_fxc
 
+def make_grid(def_pts=200,cut_pt=2.0):
+
+    gfile = './grids/gauss_legendre_{:}_pts.csv'
+    if isfile(gfile):
+        wg,grid = np.transpose(np.genfromtxt(gfile,delimiter=',',skip_header=1))
+    else:
+        wg,grid = gauss_quad(def_pts,grid_type='legendre')
+
+    # first step, shift grid and weights from (-1, 1) to (0, 1)
+    sgrid = 0.5*(grid + 1)
+    swg = 0.5*wg
+
+    """
+        ogrid integrates from 0 to cut_pt, then extrapolates from cut_pt to infinity using
+        int_0^inf f(x) dx = int_0^x_c f(x) dx + int_0^(1/x_c) f(1/u)/u**2 du,
+        with u = 1/x. Then x_c = cut_pt, which by default = 2.
+    """
+    ogrid = cut_pt*sgrid
+    owg = cut_pt*swg
+    oextrap = sgrid/cut_pt
+    owg_extrap = swg/(cut_pt*oextrap**2)
+    ogrid = np.concatenate((ogrid,1/oextrap))
+    owg = np.concatenate((owg,owg_extrap))
+
+    return ogrid,owg
+
+def fxc_longitudinal_fixed_grid(omega,dv,grid=[],wg=[]):
+
+    if len(grid) > 0 and len(wg) > 0:
+        inf_grid = grid
+        inf_wg = wg
+    else:
+        inf_grid,inf_wg = make_grid(def_pts=200,cut_pt=50*dv['wp0'])
+
+    qvpars = get_qv_pars(dv)
+    wcut = max(dv['wp0'],np.abs(qvpars[2]).max())
+    im_qv = im_fxc_longitudinal(omega,dv,pars=qvpars)
+    finf = high_freq(dv)
+
+    w,igrid = np.meshgrid(omega,inf_grid)
+    lgrid = -igrid + w - 1.e-10
+    im_qv_l = im_fxc_longitudinal(lgrid,dv,pars=qvpars)
+
+    ugrid = w + 1.e-10 + igrid
+    im_qv_u = im_fxc_longitudinal(ugrid,dv,pars=qvpars)
+    intgd = im_qv_l/(lgrid - w) + im_qv_u/(ugrid - w)
+
+    re_qv = np.einsum('i,ik->k',inf_wg,intgd)
+    fxc_qv = re_qv/pi + finf + 1.j*im_qv
+
+    return fxc_qv
+
+def fxc_qv_ifreq_fixed_grid(omega,dv,grid=[],wg=[]):
+
+    if len(grid) > 0 and len(wg) > 0:
+        inf_grid = grid
+        inf_wg = wg
+    else:
+        inf_grid,inf_wg = make_grid(def_pts=200,cut_pt=50*dv['wp0'])
+
+    dinf_grid = np.concatenate((inf_grid,-inf_grid))
+    dinf_wg = np.concatenate((inf_wg,inf_wg))
+
+    finf = high_freq(dv)
+
+    if hasattr(omega,'__len__'):
+
+        fxc_iu = np.zeros(omega.shape,dtype='complex')
+
+        fxc_tmp = fxc_longitudinal_fixed_grid(omega,dv,grid=inf_grid,wg=inf_wg)
+
+        for iw,w in enumerate(omega):
+            rintd = (w*(fxc_tmp.real-finf) + dinf_grid*fxc_tmp.imag)/(dinf_grid**2 + w**2)
+            iintd = (-dinf_grid*(fxc_tmp.real-finf) + w*fxc_tmp.imag)/(dinf_grid**2 + w**2)
+            fxc_iu[iw] = np.sum(dinf_wg*(rintd + 1.j*iintd))
+            #fxc_iu.real[iw] = np.sum(dinf_wg*rintd)
+            #fxc_iu.imag[iw] = np.sum(dinf_wg*iintd)
+    else:
+
+        fxc_tmp = fxc_longitudinal_fixed_grid(omega,dv,grid=inf_grid,wg=inf_wg)
+        rintd = (omega*(fxc_tmp.real-finf) + dinf_grid*fxc_tmp.imag)/(dinf_grid**2 + omega**2)
+        iintd = (-dinf_grid*(fxc_tmp.real-finf) + omega*fxc_tmp.imag)/(dinf_grid**2 + omega**2)
+        fxc_iu = np.sum(dinf_wg*(rintd + 1.j*iintd))
+
+    return finf + fxc_iu/(2*pi)
+
+def qv_fixed_grid(omega,dv,axis='real',ugrid=[],uwg=[]):
+    if axis == 'real':
+        return fxc_longitudinal_fixed_grid(omega,dv,grid=ugrid,wg=uwg)
+    elif axis == 'imag':
+        return fxc_qv_ifreq_fixed_grid(omega,dv,grid=ugrid,wg=uwg)
+    else:
+        raise ValueError('Unknown axis, ',axis)
 
 if __name__=="__main__":
 

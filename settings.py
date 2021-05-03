@@ -1,5 +1,5 @@
 
-routine='PDISP'
+routine='testing'
 
 """
     routine options:
@@ -27,8 +27,8 @@ rs_list = [1,4,10,30,69]#[1,2,3,4,5,6,7,8,9,10,20,30,40,50,60,70,80,90,100]
 if not hasattr(rs_list,'__len__'):
     rs_list = [rs_list]
 
-# 'ALDA', 'RPA', 'MCP07', 'static MCP07', 'TC', 'QV', 'QV_MCP07'
-fxc = 'MCP07'
+# 'ALDA', 'RPA', 'MCP07', 'static MCP07', 'TC', 'QV', 'QV_MCP07', 'QV_TC'
+fxc = 'QV_TC'
 
 TC_pars = {'a': 4.01, 'b': 1.21, 'c': 0.11, 'd': 1.07}#{'a':4.01067394,'b': 1.21065643, 'c':0.10975759, 'd': 1.07043728}
 

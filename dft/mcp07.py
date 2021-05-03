@@ -3,7 +3,7 @@ import numpy as np
 from settings import pi,TC_pars,gki_param
 from dft.alda import alda,lda_derivs
 from dft.gki_fxc import gki_dynamic
-from dft.qv_fxc import fxc_longitudinal as qv_fxc
+from dft.qv_fxc import qv_fixed_grid as qv_fxc
 
 def mcp07_static(q,dv,param='PZ81'):
 
@@ -71,11 +71,24 @@ def mcp07_dynamic(q,omega,dv,axis='real',revised=False,pars={},param='PZ81'):
 
     return fxc
 
-def qv_mcp07(q,omega,dv):
+def qv_mcp07(q,omega,dv,axis='real',revised=False,intgrid=[],intwg=[]):
 
-    fxc_q,fxc0_gki,akn = mcp07_static(q,dv,param='PW92')
-    fxc0_qv = qv_fxc(dvars,0.0)
-    fxc_omega = qv_fxc(dvars,omega)
-    fxc = (1.0 + np.exp(-akn*q**2)*(fxc_omega/fxc0_qv - 1.0))*fxc_q
+    fxc_q,f0_gki,akn = mcp07_static(q,dv,param='PW92')
+    f0_qv = qv_fxc(0.0,dv,axis=axis,ugrid=intgrid,uwg=intwg)
+    if revised:
+        if len(pars) > 0:
+            fp = pars
+        elif len(pars) == 0 and len(TC_pars) >0:
+            fp = TC_pars
+        else:
+            raise SystemExit('TC kernel requires fit parameters!')
+        kscr = fp['a']*dv['kF']/(1.0 + fp['b']*dv['kF']**(0.5))
+        F1 = fp['c']*dv['rs']**2
+        F2 = F1 + (1.0 - F1)*np.exp(-fp['d']*(q/kscr)**2)
+        fxc_omega = qv_fxc(F2*omega,dv,axis=axis,ugrid=intgrid,uwg=intwg)
+        fxc = (f0_qv + np.exp(-(q/kscr)**2)*(fxc_omega - f0_qv))*fxc_q/f0_gki
+    else:
+        fxc_omega = qv_fxc(omega,dv,axis=axis,ugrid=intgrid,uwg=intwg)
+        fxc = (f0_qv + np.exp(-akn*q**2)*(fxc_omega - f0_qv))*fxc_q/f0_gki
 
     return fxc

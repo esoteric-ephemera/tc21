@@ -15,8 +15,8 @@ def chi_parser(z,omega,ixn,rs,wfxc,reduce_omega=False,imag_freq=False,ret_eps=Fa
     """
         + z = q/(2 kF)
         + omega is the frequency, in atomic units
-        + ixn is lambda, the coupling constant. Note that "lambda" is a Python
-            defined function, so we can't use that name here
+        + ixn is lambda, the coupling constant. Note that "lambda" reserved for
+            anonymous functions in Python, so we can't use that name here
         + rs is the jellium density parameter, in bohr
         + wfxc selects the XC kernel
             + LDA (optional) selects either the Perdew-Zunger 1981 (PZ81) or
@@ -101,7 +101,9 @@ def chi_parser(z,omega,ixn,rs,wfxc,reduce_omega=False,imag_freq=False,ret_eps=Fa
     elif wfxc == 'QVmulti':
         fxc = fxc_longitudinal_multi_proc(dvars,om)
     elif wfxc == 'QV_MCP07':
-        fxc = qv_mcp07(q,omega,dvars)
+        fxc = qv_mcp07(q,om,dvars,axis=which_axis,revised=False)
+    elif wfxc == 'QV_TC':
+        fxc = qv_mcp07(q,om,dvars,axis=which_axis,revised=True)
     else:
         raise SystemExit('WARNING, unrecognized XC kernel',wfxc)
 
