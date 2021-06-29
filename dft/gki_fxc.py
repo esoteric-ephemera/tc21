@@ -71,12 +71,14 @@ def gki_dynamic_real_freq(dv,u,x_only=False,revised=False,param='PZ81',dimension
     gx = xk/((1.0 + xk**2)**(5.0/4.0))
 
     if revised:
-        apar = 0.1756
-        bpar = 1.0376
-        cpar = 2.9787
+        cc1,cc2,cc3,cc4 = (0.17467008438086054, 3.2237984506125503, 2.224790597667039, 1.8906775733050594)
+        hx = 1/gam*(1 - cc1*xk**2)/(1 + cc2*xk**2 + cc3*xk**4 + cc4*xk**6 + (cc1/gam)**(16/7)*xk**8)**(7/16)
+        """
+        apar,bpar,cpar = (0.1756,1.0376,2.9787)
         powr = 7.0/(2*cpar)
         hx = 1.0/gam*(1.0 - apar*xk**2)
-        hx /= (1.0 + bpar*xk**2 + (apar/gam)**(1.0/powr)*xk**cpar)**powr
+        hx /= (1.0 + bpar*xk**2 + (apar/gam)**(1.0/powr)*np.abs(xk)**cpar)**powr
+        """
     else:
         aj = 0.63
         h0 = 1.0/gam
@@ -84,44 +86,38 @@ def gki_dynamic_real_freq(dv,u,x_only=False,revised=False,param='PZ81',dimension
         fac = (h0*aj)**(4.0/7.0)
         hx /= (1.0 + fac*xk**2)**(7.0/4.0)
 
-    if hasattr(u,'__len__'):
-        fxcu = np.zeros(u.shape,dtype='complex')
-    else:
-        fxcu = 0.0+0.0j
     if dimensionless:
-        fxcu.real = hx
-        fxcu.imag = gx
+        fxcu = hx + 1.j*gx
     else:
-        fxcu.real = finf - cc*bn**(3.0/4.0)*hx
-        fxcu.imag = -cc*bn**(3.0/4.0)*gx
+        fxcu = finf - cc*bn**(3/4)*(hx + 1.j*gx)
     return fxcu
 
 
 def gki_dynamic(dv,u,axis='real',x_only=False,revised=False,param='PZ81',use_par=False):
 
-    ret_scalar = False
-    if not hasattr(u,'__len__'):
-        if not hasattr(dv['rs'],'__len__'):
-            ret_scalar = True
-            u = u*np.ones(1)
-        else:
-            if hasattr(dv['rs'],'__len__'):
-                u = u*np.ones(dv['rs'].shape)
     if axis == 'real':
         fxcu = gki_dynamic_real_freq(dv,u,x_only=x_only,revised=revised,param=param)
+
     elif axis == 'imag':
-        fxcu = np.zeros(u.shape)
+        
         bn,finf = exact_constraints(dv,x_only=x_only,param=param)
         if use_par:
             if not revised and not x_only and param == 'PZ81':
                 cpars = [1.06971,1.52708]#[1.06971136,1.52708142] # higher precision values destabilize the integration
                 interp = 1.0/gam/(1.0 + (u.imag*bn**(0.5))**cpars[0])**cpars[1]
             elif revised and not x_only and param == 'PW92':
+                y = bn**(0.5)*u.imag
+                cp = [1.2246033094646769, 0.9780663544436814, 0.395541393738581, 1.3302298569459192, 1.0056767945146443]
+                interp = 1/gam*(1 - cp[0]*y + cp[1]*y**2)/(1 + cp[2]*y**2 + cp[3]*y**4 + cp[4]*y**6 + (cp[1]/gam)**(16/7)*y**8)**(7/16)
+                """
                 cpars = [0.99711536, 1.36722527, 0.93805229, 0.0101391,  0.71194338]
                 xr = u.imag*bn**(0.5)
                 interp = 1.0/gam*(1.0 - cpars[3]*xr**cpars[4])/(1.0 + cpars[2]*xr**cpars[0])**cpars[1]
-            fxcu = -cc*bn**(3.0/4.0)*interp + finf
+                """
+            fxcu = -cc*bn**(3/4)*interp + finf
+
         else:
+
             def wrap_integrand(tt,freq,rescale=False):
                 if rescale:
                     alp = 0.1
@@ -134,16 +130,25 @@ def gki_dynamic(dv,u,axis='real',x_only=False,revised=False,param='PZ81',use_par
                 num = freq*tfxc.real + to*tfxc.imag
                 denom = to**2 + freq**2
                 return num/denom*d_to_d_tt
-            for itu,tu in enumerate(u):
-                rf = tu.imag*bn[itu]**(0.5)
-                fxcu[itu],err = nquad(wrap_integrand,(-1.0,1.0),'global_adap',{'itgr':'GK','npts':5,'prec':1.e-8},args=(rf,),kwargs={'rescale':True})
+
+            if hasattr(u,'__len__'):
+                for itu,tu in enumerate(tmpu):
+                    rf = tu.imag*bn[itu]**(0.5)
+                    fxcu[itu],err = nquad(wrap_integrand,(-1.0,1.0),'global_adap',{'itgr':'GK','npts':5,'prec':1.e-8},args=(rf,),kwargs={'rescale':True})
+                    if err['error'] != err['error']:
+                        fxcu[itu],err = nquad(wrap_integrand,(0.0,'inf'),'global_adap',{'itgr':'GK','npts':5,'prec':1.e-8},args=(rf,))
+                    if err['code'] == 0:
+                        print(('WARNING, analytic continuation failed; error {:}').format(err['error']))
+                    fxcu[itu] = -cc*bn[itu]**(3.0/4.0)*fxcu[itu]/pi + finf[itu]
+            else:
+                rf = u.imag*bn**(0.5)
+                fxcu,err = nquad(wrap_integrand,(-1.0,1.0),'global_adap',{'itgr':'GK','npts':5,'prec':1.e-8},args=(rf,),kwargs={'rescale':True})
                 if err['error'] != err['error']:
-                    fxcu[itu],err = nquad(wrap_integrand,(0.0,'inf'),'global_adap',{'itgr':'GK','npts':5,'prec':1.e-8},args=(rf,))
+                    fxcu,err = nquad(wrap_integrand,(0.0,'inf'),'global_adap',{'itgr':'GK','npts':5,'prec':1.e-8},args=(rf,))
                 if err['code'] == 0:
                     print(('WARNING, analytic continuation failed; error {:}').format(err['error']))
-                fxcu[itu] = -cc*bn[itu]**(3.0/4.0)*fxcu[itu]/pi + finf[itu]
-    if ret_scalar:
-        return fxcu[0]
+                fxcu = -cc*bn**(3.0/4.0)*fxcu/pi + finf
+
     return fxcu
 
 
@@ -157,17 +162,27 @@ def gki_real_freq_taylor_series(dv,u,uc,revised=False,param='PZ81'):
     dgx = (1 - 3/2*xk**2)/(1.0 + xk**2)**(9/4)
 
     if revised:
-        apar = 0.1756
-        bpar = 1.0376
-        cpar = 2.9787
+        cc1,cc2,cc3,cc4 = (0.17467008438086054, 3.2237984506125503, 2.224790597667039, 1.8906775733050594)
+        hx_num = (1 - cc1*xk**2)
+        hx_den = (1 + cc2*xk**2 + cc3*xk**4 + cc4*xk**6 + (cc1/gam)**(16/7)*xk**8)
+        hx_den_pow = hx_den**(7/16)
+        hx = 1/gam*hx_num/hx_den_pow
+
+        dhx1 = -2*cc1*xk
+        dhx2 = -(7/8)*(cc2*xk + 2*cc3*xk**3 + 3*cc4*xk**5 + 4*(cc1/gam)**(16/7)*xk**7)/hx_den
+
+        dhx = 1/gam*(dhx1 + dhx2*hx_num)/hx_den_pow
+        """
+        apar,bpar,cpar = (0.1756,1.0376,2.9787)
         powr = 7.0/(2*cpar)
         hx = 1/gam*(1.0 - apar*xk**2)
-        hxden = (1 + bpar*xk**2 + (apar/gam)**(1/powr)*xk**cpar)
+        hxden = (1 + bpar*xk**2 + (apar/gam)**(1/powr)*np.abs(xk)**cpar)
         hx /= hxden**powr
 
         dhx1 = -2*apar*xk
-        dhx2 = -powr*(2*bpar*xk + cpar*(apar/gam)**(1/powr)*xk**(cpar-1))/hxden
-        dhx = 1/gam*(dhx1 + dhx2)/hxden**powr
+        dhx2 = -powr*(2*bpar*xk + cpar*(apar/gam)**(1/powr)*np.sign(xk)*np.abs(xk)**(cpar-1))/hxden
+        dhx = 1/gam*(dhx1 + dhx2*(1 - apar*xk**2 ))/hxden**powr
+        """
     else:
         aj = 0.63
         h0 = 1/gam
@@ -180,13 +195,17 @@ def gki_real_freq_taylor_series(dv,u,uc,revised=False,param='PZ81'):
 
     fxcu = finf - cc*bn**(3/4)*(hx + 1.j*gx)
     """
-        Cauchy-Riemman conditions for derivative of f(z) = u(x,y) + i v(x,y)
-        such that z = x + i y stipulate that
-        f'(z) = 1/2 [ du/dx + i dv/dx ] along the real axis
+        Cauchy-Riemman conditions for derivative of f(z) = u(x,y) + i v(x,y), for z = x + i y, with u and v real functions, and x and y real numbers
 
-        this analytic continuation is specifically for frequencies just below
-        the real axis, hence the extra factor of 0.5 in d_fxc_du
+        d u/ dx = dv / dy
+        d u / dy = -dv / dx
     """
-    d_fxc_du = - 0.5*cc*bn**(3/4)*(dhx + 1.j*dgx)*bnh
+    #d_fxc_du = - cc*bn**(3/4)*(dhx + 1.j*dgx)*bnh
+    #return fxcu + d_fxc_du*(u - uc)
+    dhx *= - cc*bn**(3/4)*bnh
+    dgx *= - cc*bn**(3/4)*bnh
 
-    return fxcu + d_fxc_du*(u - uc)
+    dfxcu = dhx*(u.real - uc) - dgx*u.imag
+    dfxcu += 1.j*(dgx*(u.real - uc) + dhx*u.imag)
+
+    return fxcu + dfxcu

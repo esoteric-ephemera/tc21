@@ -11,6 +11,8 @@ from plotters.ghost_plasmon import plot_ghost_exciton
 from plotters.plot_kernel import fxc_plotter
 from plotters.qmc_data_plotter import plot_qmc_sq_dat
 from plotters.plasmon_dispersion import plasmon_dispersion
+from ultranonlocality.alpha_sum import calc_alpha,alpha_plotter
+from plotters.plot_fluctuations import plot_dens_fluc
 
 def main():
 
@@ -25,10 +27,11 @@ def main():
 
         if settings.moment_pars['calc']:
             moment_calc(settings.moment_pars['order'])
-        if settings.moment_pars['sq_plots']=='single':
-            sq_plots()
-        elif settings.moment_pars['sq_plots']=='comp':
-            sq_tc_mcp07_comp_plot()
+        if settings.moment_pars['plot']:
+            if settings.moment_pars['sq_plots']=='single':
+                sq_plots()
+            elif settings.moment_pars['sq_plots']=='comp':
+                sq_tc_mcp07_comp_plot()
 
     elif settings.routine == 'HXFIT':
 
@@ -75,8 +78,22 @@ def main():
 
         plasmon_dispersion()
 
+    elif settings.routine == 'UNLOC':
+
+        if settings.gen_opts['calc']:
+            calc_alpha(['DLDA','MCP07','TC'])
+        if settings.gen_opts['plot']:
+            alpha_plotter(['DLDA','MCP07','TC'],sign_conv=-1)
+
+    elif settings.routine == 'PDFLUC':
+
+        plot_dens_fluc()
+
     elif settings.routine == 'testing':
         # space just for testing unfinished parts of routines
+
+        from dft.mcp07 import fit_tc21_ifreq
+        fit_tc21_ifreq()
 
         return
     else:

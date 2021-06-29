@@ -3,7 +3,7 @@ import numpy as np
 from settings import pi,TC_pars,gki_param
 from dft.alda import alda,lda_derivs
 from dft.gki_fxc import gki_dynamic
-from dft.qv_fxc import qv_fixed_grid as qv_fxc
+from dft.qv_fxc import qv_fixed_grid,qv_static
 
 def mcp07_static(q,dv,param='PZ81'):
 
@@ -57,12 +57,8 @@ def mcp07_dynamic(q,omega,dv,axis='real',revised=False,pars={},param='PZ81'):
         else:
             raise SystemExit('TC kernel requires fit parameters!')
         kscr = fp['a']*dv['kF']/(1.0 + fp['b']*dv['kF']**(0.5))
-        #F1 = (fp['a'] + fp['b']*fp['c']*dv['rs'])/(1.0 + fp['c']*dv['rs'])*dv['rs']**2
-        #rs_interp = (fp['a'] + fp['b']*fp['d']*dv['rs']**fp['c'])/(1.0 + fp['d']*dv['rs']**fp['c'])
-        F1 = fp['c']*dv['rs']**2#3/(1.0 + fp['d']*dv['rs'])#(1.0 + fp['c']*dv['rs']**3)/(1.0 + fp['d']*dv['rs'])
+        F1 = fp['c']*dv['rs']**2
         F2 = F1 + (1.0 - F1)*np.exp(-fp['d']*(q/kscr)**2)
-        #ixn_inv = dv['rs']**2*q*omega**(0.5)
-        #F2 = 1.0 + (fp['c'] - 1.0)*ixn_inv/(1.0 + ixn_inv)
         fxc_omega = gki_dynamic(dv,F2*omega,axis=axis,revised=True,param=param,use_par=gki_param)
         fxc = (1.0 + np.exp(-(q/kscr)**2)*(fxc_omega/f0 - 1.0))*fxc_q
     else:
@@ -74,7 +70,7 @@ def mcp07_dynamic(q,omega,dv,axis='real',revised=False,pars={},param='PZ81'):
 def qv_mcp07(q,omega,dv,axis='real',revised=False,pars={},intgrid=[],intwg=[]):
 
     fxc_q,f0_gki,akn = mcp07_static(q,dv,param='PW92')
-    f0_qv = qv_fxc(0.0,dv,axis=axis,ugrid=intgrid,uwg=intwg)
+    f0_qv = qv_static(dv)
     if revised:
         if len(pars) > 0:
             fp = pars
@@ -85,10 +81,71 @@ def qv_mcp07(q,omega,dv,axis='real',revised=False,pars={},intgrid=[],intwg=[]):
         kscr = fp['a']*dv['kF']/(1.0 + fp['b']*dv['kF']**(0.5))
         F1 = fp['c']*dv['rs']**2
         F2 = F1 + (1.0 - F1)*np.exp(-fp['d']*(q/kscr)**2)
-        fxc_omega = qv_fxc(F2*omega,dv,axis=axis,ugrid=intgrid,uwg=intwg)
+        fxc_omega = qv_fixed_grid(F2*omega,dv,axis=axis,ugrid=intgrid,uwg=intwg)
         fxc = (f0_qv + np.exp(-(q/kscr)**2)*(fxc_omega - f0_qv))*fxc_q/f0_gki
     else:
-        fxc_omega = qv_fxc(omega,dv,axis=axis,ugrid=intgrid,uwg=intwg)
+        fxc_omega = qv_fixed_grid(omega,dv,axis=axis,ugrid=intgrid,uwg=intwg)
         fxc = (f0_qv + np.exp(-akn*q**2)*(fxc_omega - f0_qv))*fxc_q/f0_gki
 
     return fxc
+
+
+def fit_tc21_ifreq():
+
+    from dft.gki_fxc import gki_dynamic_real_freq,gam
+    from utilities.integrators import nquad
+    from scipy.optimize import leastsq
+    from os.path import isfile
+
+    rs = 1
+    dv = {}
+    dv['rs'] = rs
+    dv['kF'] = (9.0*pi/4.0)**(1.0/3.0)/rs
+    dv['n'] = 3.0/(4.0*pi*dv['rs']**3)
+    dv['rsh'] = dv['rs']**(0.5)
+    dv['wp0'] = (3/dv['rs']**3)**(0.5)
+
+    def wrap_integrand(tt,freq,rescale=False):
+        if rescale:
+            alp = 0.1
+            to = 2*alp/(tt+1.0)-alp
+            d_to_d_tt = 2*alp/(tt+1.0)**2
+        else:
+            to = tt
+            d_to_d_tt = 1.0
+        tfxc = gki_dynamic_real_freq(dv,to,x_only=False,revised=True,param='PW92',dimensionless=True)
+        num = freq*tfxc.real + to*tfxc.imag
+        denom = to**2 + freq**2
+        return num/denom*d_to_d_tt
+
+    if isfile('./test_fits/gki_fxc_ifreq.csv'):
+        wl,fxciu = np.transpose(np.genfromtxt('./test_fits/gki_fxc_ifreq.csv',delimiter=',',skip_header=1))
+    else:
+        wl = np.arange(0.005,10.005,0.005)
+        fxciu = np.zeros(wl.shape[0])
+        for itu,tu in enumerate(wl):
+            fxciu[itu],err = nquad(wrap_integrand,(-1.0,1.0),'global_adap',{'itgr':'GK','npts':5,'prec':1.e-8},args=(tu,),kwargs={'rescale':True})
+            if err['error'] != err['error']:
+                fxcu[itu],err = nquad(wrap_integrand,(0.0,'inf'),'global_adap',{'itgr':'GK','npts':5,'prec':1.e-8},args=(tu,))
+            if err['code'] == 0:
+                print(('WARNING, analytic continuation failed; error {:}').format(err['error']))
+
+        # rescale so that fxc(0) - f_inf = 1 --> factor of gam
+        # factor of 1/pi comes from Cauchy principal value integral
+        fxciu *= gam/pi
+        np.savetxt('./test_fits/gki_fxc_ifreq.csv',np.transpose((wl,fxciu)),delimiter=',',header='b(n)**(0.5)*u, fxc(i u)')
+
+    def fitfun(cp):
+        f = (1 - cp[0]*wl + cp[1]*wl**2)/(1 + cp[2]*wl**2 + cp[3]*wl**4 + cp[4]*wl**6 + (cp[1]/gam)**(16/7)*wl**8)**(7/16)
+        return f
+    def residuals(cp):
+        return (fitfun(cp) - fxciu)**2
+    pars = leastsq(residuals,np.ones(5))[0]
+    with open('./fitting/fxc_ifreq_log.csv','w+') as ofl:
+        ofl.write('c1, c2, c3, c4, c5 \n')
+        ofl.write(('{:}, {:}, {:}, {:}, {:}\n').format(*pars))
+        ofl.write(('Sum of square residuals = {:}').format(np.sum(residuals(pars))))
+    tf = fitfun(pars)
+    np.savetxt('./test_fits/fxc_ifreq_fit.csv',np.transpose((tf,fxciu,fxciu-tf)),delimiter=',',header='Model, PVI, PVI - Model')
+
+    return

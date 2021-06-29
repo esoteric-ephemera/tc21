@@ -6,15 +6,15 @@ from dft.lsda import ec_pw92
 
 from settings import clist as ncl
 
-nbs = '/Users/aaronkaplan/Dropbox/phd.nosync/mcp07_revised/code/reference_data/'
+nbs = '/Users/aaronkaplan/Dropbox/phd.nosync/mcp07_revised/code/eps_data/'#'/Users/aaronkaplan/Dropbox/phd.nosync/mcp07_revised/code/reference_data/'
 mkrlist=['o','s','d','^','v','x','*','+']
 
 def eps_c_plots(targ=None):
     #ncl=['tab:blue','tab:orange','tab:green','tab:red','tab:purple','tab:brown','tab:olive','tab:gray']
-    fls = {'MCP07': nbs+ 'MCP07_eps_c_reference.csv',
+    fls = {'MCP07': nbs+ 'epsilon_C_MCP07.csv',#'MCP07_eps_c_reference.csv',
     #'static MCP07': nbs+ 'epsilon_C_MCP07_static.csv',
-    'RPA': nbs+ 'RPA_eps_c_reference.csv',
-    'ALDA': nbs+ 'ALDA_eps_c_reference.csv'
+    'RPA': nbs+ 'epsilon_C_RPA.csv',#'RPA_eps_c_reference.csv',
+    'ALDA': nbs+ 'epsilon_C_ALDA.csv'#'ALDA_eps_c_reference.csv'
      }
     if targ is not None:
         fls['TC'] = targ
@@ -25,10 +25,14 @@ def eps_c_plots(targ=None):
     'PZ81': (85,-0.002),
     'TC': (80,.001)
     }
+
+    ec_out = {}
+
     fig,ax = plt.subplots(figsize=(8,6))
     for ifxc,fxc in enumerate(fls):
         if fxc != 'TC':
-            rs,ec = np.transpose(np.genfromtxt(fls[fxc],delimiter=',',skip_header=1))
+            rs,ec,_,_ = np.transpose(np.genfromtxt(fls[fxc],delimiter=',',skip_header=1))
+            ec_out[fxc] = ec[rs<=10]
             if fxc == 'ALDA':
                 ec = ec[rs<=30.0]
                 rs = rs[rs<=30.0]
@@ -37,6 +41,8 @@ def eps_c_plots(targ=None):
                 rs = rs[rs<=69.0]
         else:
             rs,ec,_,_ = np.transpose(np.genfromtxt(fls[fxc],delimiter=',',skip_header=1))
+            ec_out['rs'] = rs[rs<=10]
+            ec_out[fxc] = ec[rs<=10]
         ax.plot(rs,ec,color=ncl[ifxc],label=fxc,linewidth=2.5)
         if fxc == 'TC':
             lbl = 'TC21'
@@ -61,6 +67,19 @@ def eps_c_plots(targ=None):
     #else:
     #plt.show()
     plt.savefig('./figs/ec_plot.pdf',dpi=600,bbox_inches='tight')
+
+    ec_lda,_,_ = ec_pw92(ec_out['rs'],0.0)
+    np.savetxt('./eps_data/eps_comp.csv',np.transpose((ec_out['rs'],ec_lda,ec_out['RPA'],ec_out['ALDA'],ec_out['MCP07'],ec_out['TC'])),delimiter=',',header = 'rs, PW92, RPA, ALDA, MCP07, TC21')
+
+    texfl = open('./eps_data/eps_comp.tex','w+')
+    texfl.write('$\\rs$ & $\\varepsilon_{\\mathrm{c}}$ PW92 (hartree/electron) & RPA & ALDA & MCP07 & TC21 \\\\ \hline \n')
+    for irs,ars in enumerate(ec_out['rs']):
+        if ars < 1:
+            texfl.write(('{:.1f} & '+ 4*'{:.4f} & ' + '{:.4f} \\\\ \n').format(ars,ec_lda[irs],ec_out['RPA'][irs],ec_out['ALDA'][irs],ec_out['MCP07'][irs],ec_out['TC'][irs]))
+        else:
+            texfl.write(('{:} & '+ 4*'{:.4f} & ' + '{:.4f} \\\\ \n').format(int(ars),ec_lda[irs],ec_out['RPA'][irs],ec_out['ALDA'][irs],ec_out['MCP07'][irs],ec_out['TC'][irs]))
+    texfl.close()
+
     return
 
 

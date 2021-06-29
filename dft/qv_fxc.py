@@ -64,6 +64,14 @@ def high_freq(dv):
     fxc_inf = finf_x + finf_c
     return fxc_inf
 
+def qv_static(dv,use_mu_xc=True):
+    fxc_0 = alda(dv,x_only=False,param='PW92')
+
+    if use_mu_xc:
+        mu_xc_n = mu_xc_per_n(dv['rs'],0.03115158529677855,0.011985054514894128,2.267455018224077)
+        fxc_0 += 4/3*mu_xc_n/dv['n']
+    return fxc_0
+
 def get_qv_pars(dv,use_mu_xc=True):
 
     if hasattr(dv['rs'],'__len__'):
@@ -249,17 +257,20 @@ def fxc_qv_ifreq_fixed_grid(omega,dv,grid=[],wg=[]):
 
         fxc_iu = np.zeros(omega.shape,dtype='complex')
 
-        fxc_tmp = fxc_longitudinal_fixed_grid(omega,dv,grid=inf_grid,wg=inf_wg)
+        #if not hasattr(dv['rs'],'__len__'):
+        #    fxc_tmp = fxc_longitudinal_fixed_grid(dinf_grid,dv,grid=inf_grid,wg=inf_wg)
 
         for iw,w in enumerate(omega):
-            rintd = (w*(fxc_tmp.real-finf) + dinf_grid*fxc_tmp.imag)/(dinf_grid**2 + w**2)
-            iintd = (-dinf_grid*(fxc_tmp.real-finf) + w*fxc_tmp.imag)/(dinf_grid**2 + w**2)
+            #if hasattr(dv['rs'],'__len__'):
+            fxc_tmp = fxc_longitudinal_fixed_grid(dinf_grid,density_variables(dv['rs'][iw]),grid=inf_grid,wg=inf_wg)
+            rintd = (w*(fxc_tmp.real-finf[iw]) + dinf_grid*fxc_tmp.imag)/(dinf_grid**2 + w**2)
+            iintd = (-dinf_grid*(fxc_tmp.real-finf[iw]) + w*fxc_tmp.imag)/(dinf_grid**2 + w**2)
             fxc_iu[iw] = np.sum(dinf_wg*(rintd + 1.j*iintd))
             #fxc_iu.real[iw] = np.sum(dinf_wg*rintd)
             #fxc_iu.imag[iw] = np.sum(dinf_wg*iintd)
     else:
 
-        fxc_tmp = fxc_longitudinal_fixed_grid(omega,dv,grid=inf_grid,wg=inf_wg)
+        fxc_tmp = fxc_longitudinal_fixed_grid(dinf_grid,dv,grid=inf_grid,wg=inf_wg)
         rintd = (omega*(fxc_tmp.real-finf) + dinf_grid*fxc_tmp.imag)/(dinf_grid**2 + omega**2)
         iintd = (-dinf_grid*(fxc_tmp.real-finf) + omega*fxc_tmp.imag)/(dinf_grid**2 + omega**2)
         fxc_iu = np.sum(dinf_wg*(rintd + 1.j*iintd))

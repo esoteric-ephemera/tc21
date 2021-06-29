@@ -105,11 +105,16 @@ def plasmon_dispersion_single(x_l,rs):
         def wrap_nr_2d(omega):
             ttt = teps(omega,x)
             return np.asarray([ttt.real,ttt.imag])
-        ow,suc = newton_raphson_2d(wrap_nr_2d,brkt,tol=1.e-6,maxstep=500,h=1.e-6)
-        wp[ix] = ow[0]+1.j*ow[1]
+        ow,suc = newton_raphson_2d(wrap_nr_2d,brkt,tol=1.e-6,maxstep=500,h=1.e-6,jacobian=False)
 
-        if suc['code']==0:
+        #wc = ow[0]
+        eqc = (0.5*x**2 + x)*dvs['kF']**2
+
+        if suc['code']==0 or abs(ow[0] - eqc) < 1.e-6:
+            print(rs,x_l[ix])#,ow[0]/dvs['wp0'],eqc/dvs['wp0'])
             return x_l[:ix],wp[:ix]/dvs['wp0']
+
+        wp[ix] = ow[0]+1.j*ow[1]
         brkt = [wp[ix].real,wp[ix].imag]
 
     return x_l,wp/dvs['wp0']

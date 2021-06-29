@@ -127,7 +127,6 @@ def eps_quick(gridgen,pars={},rs_l=[],inps=None):
         lamb = inps[:,1]
         u = inps[:,2]
         wg = inps[:,3]
-
     need_chi_0 = False
     need_chi_lambda = False
     if eps == 'X' or eps == 'C':

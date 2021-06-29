@@ -2,6 +2,9 @@ import numpy as np
 from itertools import product
 import multiprocessing as mp
 import matplotlib.pyplot as plt
+from scipy.optimize import leastsq
+
+import settings
 
 pi = 3.141592653589793238462643383279502884197169399375105820974944592307816406286198
 gam = 1.311028777146059809410871821455657482147216796875
@@ -12,14 +15,19 @@ def error_meas(y,yref):
     return np.sum((y - yref)**2)**(0.5)/(1.0*y.shape[0])
 
 def test_fn(a,b,c,d):
-    #num = 1.0/gam*(1.0 + c*x - (a/gam)*x**2)
-    #denom = (1.0 + b*x**(3.0/2.0) + (a/gam)**(4.0/7.0)*x**2)**(7.0/4.0)
-    #num = 1.0/gam*(1.0 + b*x**c - a*x)
-    #denom = (1.0  + (a/gam)**(4.0/5.0)*x**2)**(5.0/4.0)
+    """
     powr = 7.0/(2*c)
     num = 1.0/gam*(1.0 - a*x**2)
-    denom = (1.0 + b*x**2 + (a/gam)**(1.0/powr)*x**c)**powr
+    denom = (1.0 + b*x**2 + (a/gam)**(1.0/powr)*np.abs(x)**c)**powr
+    """
+    num = 1/gam*(1 - a*x**2)
+    denom = (1 + b*x**2 + c*x**4 + d*x**6 + (a/gam)**(16/7)*x**8)**(7/16)
     return num/denom
+
+def wrap_err_lsq(var):
+    a,b,c,d = var
+    ty = test_fn(a,b,c,d)
+    return (ty - kk)**2#error_meas(ty,kk)
 
 def wrap_err(var):
     a,b,c,d = var
@@ -46,21 +54,28 @@ def kramers_kronig_plot(pars=None):
 
 def hx_fit_main():
     a_bds = [0.0,2.0]
-    b_bds = [0.0,2.0]
-    c_bds = [0.0,1.0]
+    b_bds = [0.0,4.0]
+    c_bds = [0.0,4.0]
+    d_bds = [0.0,4.0]
 
-    fling = 10
+    f = leastsq(wrap_err_lsq,[1.,1.,1.,1.])
+    aa,bb,cc,dd = f[0]
+
+    fling = 2#10
     step_l = [0.02,0.01,0.005,0.002,0.001,0.0005,0.0002,0.0001] # steps in naive grid search
 
     for istep, step in enumerate(step_l):
 
         if istep == 0: # for the initial, wide search, use special bounds
+            continue
             a_min = step
-            a_max = 1.5 + 0.5*step
+            a_max = a_bds[1]#1.5 + 0.5*step
             b_min = step
-            b_max = 1.0 + 0.5*step
-            c_min = step
-            c_max = 1.0
+            b_max = b_bds[1]#1.0 + 0.5*step
+            c_min = step#c_bds[0]
+            c_max = c_bds[1]
+            d_min = step#c_bds[0]
+            d_max = d_bds[1]
         else:
             a_min = max([a_bds[0],aa - fling*step_l[istep-1]]) # impose restrictions on bounds for coeffs
             a_max = min([a_bds[1],aa + fling*step_l[istep-1]]) # while expanding search region within some
@@ -71,13 +86,16 @@ def hx_fit_main():
             c_min = max([c_bds[0],cc - fling*step_l[istep-1]])
             c_max = min([c_bds[1],cc + fling*step_l[istep-1]])
 
+            d_min = max([d_bds[0],dd - fling*step_l[istep-1]])
+            d_max = min([d_bds[1],dd + fling*step_l[istep-1]])
+
         a_l = np.arange(a_min,a_max,step)
         b_l = np.arange(b_min,b_max,step)
         c_l = np.arange(c_min,c_max,step)
-        d_l = np.zeros(1)#np.arange(0.01,1.02,0.01)
+        d_l = np.arange(d_min,d_max,step)
         tlist = product(a_l,b_l,c_l,d_l)
 
-        pool = mp.Pool(processes=6)
+        pool = mp.Pool(processes=settings.nproc)
         tout = pool.map(wrap_err,tlist)
         pool.close()
         ind = np.argmin(np.asarray(tout))
