@@ -166,7 +166,7 @@ def fxc_plotter(rs):
 
         plt.suptitle('$r_{\\mathrm{s}}=$'+str(rs)+' jellium',fontsize=20)
         ax[i].tick_params(axis='both',labelsize=20)
-    ax[1].set_ylabel('$\\widetilde{\\epsilon}^{\\mathrm{TC21}}(q,\omega)$',fontsize=24)
+    ax[1].set_ylabel('$\\widetilde{\\epsilon}^{\\mathrm{'+settings.fxc+'}}(q,\omega)$',fontsize=24)
     ax[0].set_ylabel('$\\widetilde{\\epsilon}^{\\mathrm{RPA}}(q,\omega)$',fontsize=24)
     ax[0].legend(fontsize=20)
 

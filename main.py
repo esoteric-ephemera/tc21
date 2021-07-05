@@ -26,7 +26,11 @@ def main():
     elif settings.routine == 'FMT':
 
         if settings.moment_pars['calc']:
-            moment_calc(settings.moment_pars['order'])
+            if hasattr(settings.moment_pars['order'],'__len__'):
+                for amom in settings.moment_pars['order']:
+                    moment_calc(amom)
+            else:
+                moment_calc(settings.moment_pars['order'])
         if settings.moment_pars['plot']:
             if settings.moment_pars['sq_plots']=='single':
                 sq_plots()

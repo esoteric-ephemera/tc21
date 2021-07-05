@@ -1,5 +1,5 @@
 
-routine='PDFLUC'
+routine='ECFIT'
 
 """
     routine options:
@@ -29,7 +29,7 @@ routine='PDFLUC'
 """
 
 # enter as scalar or vector
-rs_list = [4,10,30,69,100]
+rs_list = [4,69]
 if not hasattr(rs_list,'__len__'):
     rs_list = [rs_list]
 
@@ -66,7 +66,7 @@ third_mom_pars = {'calc':False,'plot':True,
 """
 ec_fit = {'method': 'lsq'}
 
-gen_opts = {'calc':True, 'plot': True}
+gen_opts = {'calc':False, 'plot': True}
 
 # True: use a tabulated parameterization of the GKI kernel
 # False: re-evaluate the Cauchy residue integral for each value of I*omega for omega real

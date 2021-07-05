@@ -18,7 +18,7 @@ if not path.isdir('./static_cdw'):
 def wrap_eps(kf,z,fxc):
     rs = (9*pi/4.0)**(1.0/3.0)/kf
     #wp0 = (3.0/rs**3)**(0.5)
-    eps=chi_parser(z,1.e-14j*(3/rs**3)**(0.5),1.0,rs,fxc,ret_eps=True,LDA=settings.LDA)
+    eps=chi_parser(z,0.0,1.0,rs,fxc,ret_eps=True,LDA=settings.LDA)
     return eps.real
 
 def find_kf_critical_driver(z,fxc):

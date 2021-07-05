@@ -151,9 +151,9 @@ def ec_fitting():
             if settings.ec_fit['method'] == 'lsq_refine':
                 best_res = errors['res']
                 ofl.write('Iteration, A, B, C, D, Res.\n')
-                ofl.write(('LSQ, {:}, {:}, {:}, {:} \n').format(*parv,lsq_fit.cost))
+                ofl.write(('LSQ, {:}, {:}, {:}, {:}, {:} \n').format(*parv,errors['res']))
                 #step_l = [.1,.05,.02,.01,.005,.002,.001]
-                nstep = 4
+                nstep = 20
                 a_l = np.linspace(max(settings.a_min,parv[0]*.9),parv[0]*1.1,4)
                 b_l = np.linspace(max(settings.b_min,parv[1]*.9),parv[1]*1.1,4)
                 c_l = np.linspace(max(settings.c_min,parv[2]*.9),parv[2]*1.1,4)
@@ -191,9 +191,17 @@ def ec_fitting():
                     b_c = par['b']
                     c_c = par['c']
                     d_c = par['d']
+
                     ofl.write(('{:}, {:}, {:}, {:}, {:}, {:} \n').format(iastep,a_c,b_c,c_c,d_c,best_res))
                     if iastep == nstep-1:
                         ofl.write('==================\n')
+
+                    if settings.ec_fit['method'] == 'lsq_refine':
+                        if iastep == 0:
+                            old_best_res = best_res
+                        if iastep > 2 and abs(old_best_res-best_res) < abs(old_best_res)*(1.e-6):
+                            # if refinement isn't really imroving things, stop and return
+                            break
 
                     if settings.ec_fit['method'] == 'filter' and iastep < nstep-1:
                         astep = step_l[iastep]
