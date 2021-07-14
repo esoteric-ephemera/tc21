@@ -14,6 +14,7 @@ subroutine get_eps_c(ninf,nlam,rs,ec_rpa,ec_alda,&
   integer :: iq,ilam,iw,ndi,nq
   real(dp) :: aq,alam, rscl,vcscl,fxc,fxcq,fxch,cwg,f0,qv0,akn
   real(dp), dimension(2*nlam) :: fxcv, fxchv,wscl
+  complex(dp), dimension(2*nlam) :: fxcvc
   real(dp), dimension(4*ninf) :: digr,diwg
   real(dp), dimension(2*ninf) :: igr,iwg
   real(dp), dimension(2*nlam) :: qgr,qwg,wgr,wwg,vc,intgd
@@ -91,9 +92,9 @@ subroutine get_eps_c(ninf,nlam,rs,ec_rpa,ec_alda,&
       !=========================================================================
       ! TC21
 
-      wscl = wgr/lgr(ilam)**2
-      !call fxc_tc21_ifreq(aq,wscl,nq,rscl,digr,diwg,ndi,fxcv)
-      fxchv = vcscl + fxcv(:)/alam
+      wscl = wgr/alam**2
+      call tc21_dynamic(aq,wscl,nq,'IMAG',rscl,fxcvc)
+      fxchv = vcscl + real(fxcvc)/alam
       intgd = chi0(iq,:)**2*fxchv(:)/(1._dp - chi0(iq,:)*fxchv(:))
       ec_tc21 = ec_tc21 - dot_product(wwg,intgd)*cwg
 
@@ -127,11 +128,7 @@ subroutine grid_gen(cpts,vpts,rs,digrid,diwg,&
   swg = 0.5_dp*swg
 
   wp0 = (3._dp/rs**3)**(0.5_dp)
-  if (rs > 10._dp) then
-    cut_pt = 100._dp*wp0!50._dp + (100._dp*wp0-50._dp)*exp(-(rs-10._dp)**2)
-  else
-    cut_pt = 100._dp*wp0
-  end if
+  cut_pt = 100._dp*wp0
 
   digrid(1:cpts) = cut_pt*sgrid
   diwg(1:cpts) = cut_pt*swg
@@ -146,21 +143,21 @@ subroutine grid_gen(cpts,vpts,rs,digrid,diwg,&
   lgrid = 0.5_dp*(lgrid + 1._dp)
   lwg = 0.5_dp*lwg
 
+  wp0 = (3._dp/rs**3)**(0.5_dp)
+  cut_pt = 100._dp*wp0
+
   wgr(1:vpts) = cut_pt*lgrid
   wwg(1:vpts) = cut_pt*lwg
-  wgr(vpts+1:2*vpts) = cut_pt - log(lgrid)!-log(lgrid*exp(-cut_pt))
-  wwg(vpts+1:2*vpts) = lwg/lgrid
+  wgr(vpts+1:2*vpts) = cut_pt + wgr(1:vpts)
+  wwg(vpts+1:2*vpts) = wwg(1:vpts)
 
   kf = (9*pi/4._dp)**(1._dp/3._dp)/rs
-  if (rs > 10._dp) then
-    cut_pt = 100._dp*kf!20._dp + (100._dp*wp0-20._dp)*exp(-(rs-10._dp)**2)
-  else
-    cut_pt = 100._dp*kf
-  end if
+  cut_pt = 100._dp*kf
 
   qgr(1:vpts) = cut_pt*lgrid
   qwg(1:vpts) = cut_pt*lwg
-  qgr(vpts+1:2*vpts) = cut_pt/lgrid
-  qwg(vpts+1:2*vpts) = lwg*qgr(vpts+1:2*vpts)**2/cut_pt
+  qgr(vpts+1:2*vpts) = cut_pt + qgr(1:vpts)!cut_pt/lgrid
+  qwg(vpts+1:2*vpts) = qwg(1:vpts)!lwg*qgr(vpts+1:2*vpts)**2/cut_pt
+
 
 end subroutine grid_gen

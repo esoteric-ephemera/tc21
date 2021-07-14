@@ -17,11 +17,11 @@ $compiler ${compiler_opts[*]} -o tst ${subs[*]} ${libs[*]}
 
 # recommended multiprocessing, set OMP_NUM_THREADS to the
 # number of CPUs you want to spread the computations across
-OMP_NUM_THREADS=4
-export OMP_NUM_THREADS
+#OMP_NUM_THREADS=6
+#export OMP_NUM_THREADS
 
 time ./tst
 rm -f tst
 rm -rf tst.dSYM *.mod *.o
 
-#cp jell_eps_c.csv ../data_files/jell_eps_c.csv
+cp jell_eps_c.csv ../../eps_data/jell_eps_c.csv

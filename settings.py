@@ -1,5 +1,9 @@
+def gen_rs_list(rs_min,rs_max,nstep):
+    step = (rs_max - rs_min)/(nstep-1)
+    return [round(rs_min + i*step,0) for i in range(nstep)]
 
-routine='ECFIT'
+
+routine='UNLOC'
 
 """
     routine options:
@@ -8,6 +12,8 @@ routine='ECFIT'
         FMT : arbitary frequency moment calculation, options set in moment_pars
 
         HXFIT : fits the real part of the GKI kernel using the Kramers-Kronig relations
+
+        IFREQ : fits the analytic continuation of the GKI kernel to imaginary frequency
 
         ECFIT : fits the TC kernel to jellium correlation energies per electron
 
@@ -29,14 +35,14 @@ routine='ECFIT'
 """
 
 # enter as scalar or vector
-rs_list = [4,69]
+rs_list = [4,69]#[4,69]
 if not hasattr(rs_list,'__len__'):
     rs_list = [rs_list]
 
 # 'ALDA', 'RPA', 'MCP07', 'static MCP07', 'TC', 'QV', 'QV_MCP07', 'QV_TC'
 fxc = 'TC'
 
-TC_par_list = [4.470217788196006, 1.4327137309889693, 0.04466295040605292, 2.918135781120395]
+TC_par_list = [3.846991, 0.471351, 4.346063, 0.881313]#[4.470217788196006, 1.4327137309889693, 0.04466295040605292, 2.918135781120395]
 TC_par_names = ['a','b','c','d']
 TC_pars = {}
 for ipar,apar in enumerate(TC_par_names):
@@ -48,9 +54,9 @@ LDA = 'PW92'
 
 q_bounds = {'min':0.01,'max':4.01,'step':0.01} # bounds and stepsize for wavevectors
 
-moment_pars = {'calc':True,'plot':True,'sq_plots': 'single',
+moment_pars = {'calc': False,'plot': True,'sq_plots': 'comp',
 'order':0.0, 'prec':1.e-8,
-'method':'gk_adap' # method can be gk_adap (Gauss-Kronrod), original (from PNAS), or adap when order = 0
+'method':'original' # method can be gk_adap (Gauss-Kronrod), original (from PNAS), or adap when order = 0
 }
 third_mom_pars = {'calc':False,'plot':True,
 'interp': 'spline' # interp can be spline or linear
@@ -68,6 +74,9 @@ ec_fit = {'method': 'lsq'}
 
 gen_opts = {'calc':False, 'plot': True}
 
+# True: use Fortran libraries to plot jellium correlation energy; false, use python
+eps_c_flib = True
+
 # True: use a tabulated parameterization of the GKI kernel
 # False: re-evaluate the Cauchy residue integral for each value of I*omega for omega real
 gki_param = True
@@ -81,28 +90,30 @@ u_pts = 10#20
 
 # True: use three fit parameters (a,b,c); False: use two fit parameters (a,b)
 fit_c = True
-# True: use a fourth fit parameters
+# True: use a fourth fit parameter
 fit_d = True
+if not fit_c:
+    fit_d = False
 
 # optional multicore processing
 nproc = 6
 
 # initial bounds for parameters. If filter_search = True, step sizes are ignored
-a_min = 0.01
+a_min = 3
 a_max = 3.0
 a_step = 0.5
 
 # a and b bounds are required
-b_min = 0.0
+b_min = 1
 b_max = 2.0
 b_step = 0.5
 
 # if fit_c = False, these don't need to be set
-c_min = 0.0
+c_min = 4
 c_max = 2.0
 c_step = 0.5
 
-d_min = 0.0
+d_min = 1
 d_max = 2.0
 d_step = 0.5
 

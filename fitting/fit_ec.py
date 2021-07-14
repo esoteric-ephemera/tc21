@@ -1,8 +1,8 @@
 import numpy as np
 import multiprocessing as mp
 from itertools import product
-from os import path
-from scipy.optimize import least_squares
+from os import path,fsync
+from scipy.optimize import least_squares,minimize
 
 
 import settings
@@ -23,19 +23,23 @@ fgrid[:,2]=grid[:,2]
 fgrid[:,3]=wgg[:]
 
 def residuals(vals,ref,method='uniform'):
-    nelt = len(ref)
-    if method == 'uniform': # even weighting
-        wg = np.ones(nelt)
+    if method == 'uniform': # even weighting, quick return
+        err = {}
+        err['res'] = 0.0
+        for ielt,elt in enumerate(vals):
+            err[elt] = abs(ref[elt] - vals[elt])
+            err['res'] += err[elt]
+        return err
     elif method == 'sqrt': # w(x) = x^(1/2)
-        wg = np.zeros(nelt)
+        wg = np.zeros(len(ref))
         for ielt,elt in enumerate(vals):
             wg[ielt] = float(elt)**(0.5)
     elif method == 'lin': # w(x) = x
-        wg = np.zeros(nelt)
+        wg = np.zeros(len(ref))
         for ielt,elt in enumerate(vals):
             wg[ielt] = float(elt)
     elif method == 'step': # w(x < 10) = 1, w(x >= 10) = 10
-        wg = np.ones(nelt)
+        wg = np.ones(len(ref))
         for ielt,elt in enumerate(vals):
             if float(elt) >= 10:
                 wg[ielt] = 10.0
@@ -57,16 +61,20 @@ def write_to_file(ec,err):
     return
 
 def plot_TC(pars):
-    rslist = [i/10.0 for i in range(1,10)]
-    for tmp in range(1,121,1):
-        rslist.append(tmp)
-    for rs in rslist:
-        if rs not in ec_ref:
-            ec_ref[rs],_,_ = ec_pw92(rs,0.0)
-    _,ec,err=get_errors(pars,rsl=rslist,multi=True)
-    write_to_file(ec,err)
-    wfile = './eps_data/epsilon_C_{:}.csv'.format(settings.fxc)
-    eps_c_plots(targ=wfile)
+    # now using fortran libraries for correlation energy
+    if settings.eps_c_flib:
+        eps_c_plots(use_flib=True)
+    else:
+        rslist = [i/10.0 for i in range(1,10)]
+        for tmp in range(1,121,1):
+            rslist.append(tmp)
+        for rs in rslist:
+            if rs not in ec_ref:
+                ec_ref[rs],_,_ = ec_pw92(rs,0.0)
+        _,ec,err=get_errors(pars,rsl=rslist,multi=True)
+        write_to_file(ec,err)
+        wfile = './eps_data/epsilon_C_{:}.csv'.format(settings.fxc)
+        eps_c_plots(targ=wfile)
     return
 
 def get_errors(pars,rsl=[],multi=False):
@@ -94,8 +102,22 @@ def get_errors(pars,rsl=[],multi=False):
 
     return par_d,ecd,err
 
+def get_scalar_error(pars):
+    par_d = {}
+    par_d['a'],par_d['b'],par_d['c'],par_d['d'] = pars
+    ecd = eps_quick('user',pars=par_d,inps=fgrid,rs_l=settings.rs_list)
+    err = residuals(ecd,ec_ref,method='uniform')
+    return err['res']
+
 def wrap_lsq(pars):
-    _,_,errd = get_errors(pars,multi=True)
+    if settings.fit_c:
+        if settings.fit_d:
+            wpars = pars
+        else:
+            wpars = (pars[0],pars[1],pars[2],0.0)
+    else:
+        wpars = (pars[0],pars[1],0.0,0.0)
+    _,_,errd = get_errors(wpars,multi=True)
     res = np.zeros(len(settings.rs_list))
     for irs,rs in enumerate(settings.rs_list):
         res[irs] = errd[rs]**2
@@ -124,115 +146,200 @@ def ec_fitting():
     if settings.fxc in fit_regex:
 
         if settings.ec_fit['method'] in ['lsq','lsq_refine']:
-            lsq_fit = least_squares(wrap_lsq,[4,2,.05,2],bounds=((0.,0.,0.,0.),(100.,100.,100.,100.)))
-            parv = lsq_fit.x
-            par,epsc,errors = get_errors(parv,multi=True)
 
-        logfile = './eps_data/ec_fit_log_{:}.csv'.format(settings.fxc)
+            a_init_l = [settings.a_min]
+            b_init_l = [settings.b_min]
+
+            if settings.fit_c:
+                c_init_l = [settings.c_min]
+                if settings.fit_d:
+                    d_init_l = [settings.d_min]
+                    work_list = product(a_init_l,b_init_l,c_init_l,d_init_l)
+                    bds_list = ((0.,0.,0.,0.),(10.,10.,10.,10.))
+                else:
+                    work_list = product(a_init_l,b_init_l,c_init_l)
+                    bds_list = ((0.,0.,0.),(10.,10.,10.))
+            else:
+                work_list = product(a_init_l,b_init_l)
+                bds_list = ((0.,0.),(10.,10.))
+
+            best_lsq = 1e20
+            # this should help reduce the sensitivity of the least squares fit
+            # to the starting guess
+            for ipars in work_list:
+                init_set = [apar for apar in ipars]
+                lsq_fit = minimize(get_scalar_error,init_set,method='Nelder-Mead')
+                #lsq_fit = least_squares(wrap_lsq,init_set,bounds=bds_list)
+                par_tmp = lsq_fit.x
+                if len(par_tmp) < 4:
+                    for iapp in range(4 - len(par_tmp)):
+                        par_tmp.append(0.0)
+
+                par_d_tmp,epsc_tmp,errors_tmp = get_errors(par_tmp,multi=True)
+                if errors_tmp['res'] < best_lsq:
+                    best_lsq = errors_tmp['res']
+                    par = par_d_tmp
+                    parv = [apar for apar in par_tmp]
+                    epsc = epsc_tmp
+                    errors = errors_tmp
+
+        logfile = './fitting/ec_fit_log_{:}.csv'.format(settings.fxc)
         ofl = open(logfile,'w+')
 
+        nstall = 0
         if settings.ec_fit['method'] in ['filter','fixed','lsq_refine']:
 
             if settings.ec_fit['method'] == 'filter':
-                step_l = [1.0,0.5,0.1,0.5,0.2,0.1,0.05,0.02,0.01]
-                nstep = len(step_l)
-                init_a_step = step_l[0]
-                init_b_step = step_l[0]
-                init_c_step = step_l[0]
-                init_d_step = step_l[0]
+                ofl.write('Iteration, A, B, C, D, Res.\n')
+                nstep = 50
+                a_l = np.linspace(settings.a_min,settings.a_max,5)
+                b_l = np.arange(settings.b_min,settings.b_max,5)
+                if settings.fit_c:
+                    c_l = np.linspace(settings.c_min,settings.c_max,5)
+                else:
+                    c_l = np.ones(1)
+                if settings.fit_d:
+                    d_l = np.linspace(settings.d_min,settings.d_max,5)
+                else:
+                    d_l = np.ones(1)
+
             elif settings.ec_fit['method'] == 'fixed':
                 step_l = [None]
                 nstep = 1
-                init_a_step = settings.a_step
-                init_b_step = settings.b_step
-                init_c_step = settings.c_step
-                init_d_step = settings.d_step
+                a_l = np.arange(settings.a_min,settings.a_max,settings.a_step)
+                b_l = np.arange(settings.b_min,settings.b_max,settings.b_step)
+                if settings.fit_c:
+                    c_l = np.arange(settings.c_min,settings.c_max,settings.c_step)
+                else:
+                    c_l = np.zeros(1)
+                if settings.fit_d:
+                    d_l = np.arange(settings.d_min,settings.d_max,settings.d_step)
+                else:
+                    c_l = np.zeros(1)
 
             if settings.ec_fit['method'] == 'lsq_refine':
                 best_res = errors['res']
+                old_best_res = best_res
                 ofl.write('Iteration, A, B, C, D, Res.\n')
                 ofl.write(('LSQ, {:}, {:}, {:}, {:}, {:} \n').format(*parv,errors['res']))
+                ofl.flush()
+                fsync(ofl.fileno())
                 #step_l = [.1,.05,.02,.01,.005,.002,.001]
-                nstep = 20
-                a_l = np.linspace(max(settings.a_min,parv[0]*.9),parv[0]*1.1,4)
-                b_l = np.linspace(max(settings.b_min,parv[1]*.9),parv[1]*1.1,4)
-                c_l = np.linspace(max(settings.c_min,parv[2]*.9),parv[2]*1.1,4)
-                d_l = np.linspace(max(settings.d_min,parv[3]*.9),parv[3]*1.1,4)
+                nstep = 50
+                a_l = np.linspace(parv[0]*.9,parv[0]*1.1,4)
+                b_l = np.linspace(parv[1]*.9,parv[1]*1.1,4)
+                if settings.fit_c:
+                    c_l = np.linspace(parv[2]*.9,parv[2]*1.1,4)
+                else:
+                    c_l = np.zeros(1)
+                if settings.fit_d:
+                    d_l = np.linspace(parv[3]*.9,parv[3]*1.1,4)
+                else:
+                    d_l = np.zeros(1)
             else:
                 par = {}
                 epsc = {}
                 errors = {}
                 best_res = 1e20
-                a_l = np.arange(settings.a_min,settings.a_max,init_a_step)
-                b_l = np.arange(settings.b_min,settings.b_max,init_b_step)
-                if settings.fit_c:
-                    c_l = np.arange(settings.c_min,settings.c_max,init_c_step)
-                else:
-                    c_l = np.ones(1)
-                if settings.fit_d:
-                    d_l = np.arange(settings.d_min,settings.d_max,init_d_step)
-                else:
-                    d_l = np.ones(1)
+                old_best_res = best_res
 
             for iastep in range(nstep):
 
                 work_l = product(a_l,b_l,c_l,d_l)
 
-                for vec in work_l:
-                    tmp_par,tmp_ec,tmp_err = get_errors(vec,multi=(settings.nproc > 1))
-                    if tmp_err['res'] < best_res:
-                        par = tmp_par
-                        epsc = tmp_ec
-                        errors = tmp_err
-                        best_res = tmp_err['res']
+                if settings.nproc > 1:
+                    pool = mp.Pool(processes=settings.nproc)
+                    tout = pool.map(get_scalar_error,work_l)
+                    pool.close()
+                    nbetter = 0
+                    for itmp,tmp in enumerate(tout):
+                        if tmp < best_res:
+                            best_res = tmp
+                            ibest = itmp
+                            nbetter += 1
+                    if nbetter > 0:
+                        parv = list(product(a_l,b_l,c_l,d_l))[ibest]
+                        par,epsc,errors = get_errors(parv,multi=True)
+                else:
+                    for vec in work_l:
+                        tmp_par,tmp_ec,tmp_err = get_errors(vec,multi=(settings.nproc > 1))
+                        if tmp_err['res'] < best_res:
+                            par = tmp_par
+                            epsc = tmp_ec
+                            errors = tmp_err
+                            best_res = tmp_err['res']
 
                 if settings.ec_fit['method'] in ['filter','lsq_refine']:
+                    if iastep > 1:
+                        da = abs(a_c - par['a'])/abs(a_c)
+                        db = abs(b_c - par['b'])/abs(b_c)
+                        dc = abs(c_c - par['c'])/abs(c_c)
+                        dd = abs(d_c - par['d'])/abs(d_c)
+                        dres = abs(old_best_res-best_res)/abs(old_best_res)
                     a_c = par['a']
                     b_c = par['b']
                     c_c = par['c']
                     d_c = par['d']
 
                     ofl.write(('{:}, {:}, {:}, {:}, {:}, {:} \n').format(iastep,a_c,b_c,c_c,d_c,best_res))
+                    ofl.flush()
+                    fsync(ofl.fileno())
                     if iastep == nstep-1:
                         ofl.write('==================\n')
 
-                    if settings.ec_fit['method'] == 'lsq_refine':
-                        if iastep == 0:
-                            old_best_res = best_res
-                        if iastep > 2 and abs(old_best_res-best_res) < abs(old_best_res)*(1.e-6):
-                            # if refinement isn't really imroving things, stop and return
-                            break
+                    if settings.ec_fit['method'] in ['filter','lsq_refine'] and iastep < nstep-1:
 
-                    if settings.ec_fit['method'] == 'filter' and iastep < nstep-1:
-                        astep = step_l[iastep]
-                        a_l = np.arange(max(settings.a_min,a_c-2*astep),a_c + 2*astep+min(step_l),astep)
-                        b_l = np.arange(max(settings.b_min,b_c-2*astep),b_c + 2*astep+min(step_l),astep)
+                        if iastep > 1:
+                            if np.all(np.array([da,db,dc,dres]) < 1.e-6):
+                                nstall += 1
+                            else:
+                                nstall = 0
+                            if nstall > 4 and adj <= .1:
+                                # if refinement isn't really imroving things, stop and return
+                                break
+                        old_best_res = best_res
+
+                        adj = 0.75**(iastep+1)
+                        decr = 1 - adj
+                        incr = 1 + adj
+                        a_l = np.linspace(a_c*decr,a_c*incr,4)
+                        b_l = np.linspace(b_c*decr,b_c*incr,4)
                         if settings.fit_c:
-                            c_l = np.arange(max(settings.c_min,c_c-2*astep),c_c + 2*astep+min(step_l),astep)
+                            c_l = np.linspace(c_c*decr,c_c*incr,4)
                         else:
                             c_l = np.zeros(1)
                         if settings.fit_d:
-                            d_l = np.arange(max(settings.d_min,d_c-2*astep),d_c + 2*astep+min(step_l),astep)
+                            d_l = np.linspace(d_c*decr,d_c*incr,4)
                         else:
                             d_l = np.zeros(1)
-                    elif settings.ec_fit['method'] == 'lsq_refine' and iastep < nstep-1:
-                        a_l = np.linspace(max(settings.a_min,a_c*.9),a_c*1.1,4)
-                        b_l = np.linspace(max(settings.b_min,b_c*.9),b_c*1.1,4)
-                        c_l = np.linspace(max(settings.c_min,c_c*.9),c_c*1.1,4)
-                        d_l = np.linspace(max(settings.d_min,d_c*.9),d_c*1.1,4)
 
+        ofl.write('==================\n')
         ostr = 'fitted parameters:\n'
         ostr += ('{:}, '*len(par)).format(par['a'],par['b'],par['c'],par['d']) + '\n'
         ostr += 'Residual {:}\n'.format(errors['res'])
         ostr += 'Method {:}\n'.format(settings.ec_fit['method'])
         ostr += '==================\n'
-        ostr += 'rs, eps_c (hartree/electron), Abs. rel. error\n'
+        ostr += 'Initialization:\n'
+        ostr += 'A: min = {:}, max = {:}, step = {:}\n'.format(settings.a_min,settings.a_max,settings.a_step)
+        ostr += 'B: min = {:}, max = {:}, step = {:}\n'.format(settings.b_min,settings.b_max,settings.b_step)
+        if settings.fit_c:
+            ostr += 'C: min = {:}, max = {:}, step = {:}\n'.format(settings.c_min,settings.c_max,settings.c_step)
+        if settings.fit_d:
+            ostr += 'D: min = {:}, max = {:}, step = {:}\n'.format(settings.d_min,settings.d_max,settings.d_step)
+        ostr += 'z_pts, lambda_pts, u_pts\n {:}, {:}, {:} \n'.format(settings.z_pts,settings.lambda_pts,settings.u_pts)
+        ostr += '==================\n'
+        trunc_parv = [ round(par[apar],6) for apar in par ]
+        trunc_par,trunc_epsc,trunc_errors = get_errors(trunc_parv,multi=True)
+        ostr += ('{:}, '*len(par)).format(trunc_par['a'],trunc_par['b'],trunc_par['c'],trunc_par['d']) + '\n'
+        ostr += 'Residual (rounded) {:}, abs diff = {:} \n'.format(trunc_errors['res'],abs(trunc_errors['res']-errors['res']))
+        ostr += '==================\n'
+        ostr += 'rs, eps_c (hartree/electron), Abs. rel. error (using rounded params)\n'
         for rs in epsc:
-            ostr += '{:}, {:}, {:}\n'.format(rs,epsc[rs],errors[rs])
+            ostr += '{:}, {:}, {:}\n'.format(rs,trunc_epsc[rs],trunc_errors[rs])
         ofl.write(ostr)
         ofl.close()
 
-        return par,epsc,errors
+        return trunc_par,trunc_epsc,trunc_errors
 
     else:
         return get_errors({'a':None, 'b': None, 'c':None, 'd':None})

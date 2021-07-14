@@ -31,23 +31,22 @@ subroutine high_freq(rs,param,finf,bn)
 end subroutine high_freq
 
 
-subroutine gki_dynamic_real_freq(rs,freq,nw,param,revised,fxc)
+subroutine gki_dynamic_real_freq(rs,freq,nw,param,fxc)
 
+  ! original MCP07 parameteriztaion of the GKI kernel
+  ! no analytic continuation to imaginary frequency
   implicit none
   integer, parameter :: dp = selected_real_kind(15, 307)
 
   real(dp), parameter :: gam = 1.311028777146059809410871821455657482147216796875_dp
   real(dp), parameter :: cc = 4.81710873550434914847073741839267313480377197265625_dp
 
-  real(dp), parameter :: apar = 0.1756_dp,bpar = 1.0376_dp,cpar = 2.9787_dp
-  real(dp), parameter :: powr = 7._dp/(2*cpar), aj = 0.63_dp, h0 = 1._dp/gam
-
+  real(dp), parameter :: aj = 0.63_dp, h0 = 1._dp/gam
 
   integer, intent(in) :: nw
   real(dp), intent(in) :: rs
   real(dp), dimension(nw), intent(in) :: freq
   character(len=4), intent(in) :: param
-  logical, intent(in) :: revised
   complex(dp), dimension(nw), intent(out) :: fxc
 
   real(dp) :: bn,finf
@@ -59,12 +58,7 @@ subroutine gki_dynamic_real_freq(rs,freq,nw,param,revised,fxc)
 
   gx = u/(1._dp + u**2)**(5._dp/4._dp)
 
-  if (revised) then
-    hx = h0*(1._dp - apar*u**2)/( 1._dp + bpar*u**2 + &
-  &    (apar*h0)**(1._dp/powr)*abs(u)**cpar )**powr
-  else
-    hx = h0*(1._dp - aj*u**2)/( 1._dp + (h0*aj)**(4._dp/7._dp)*u**2 )**(7._dp/4._dp)
-  end if
+  hx = h0*(1._dp - aj*u**2)/( 1._dp + (h0*aj)**(4._dp/7._dp)*u**2 )**(7._dp/4._dp)
 
   fxc = finf - cc*bn**(3._dp/4._dp)*(hx + gx*cmplx(0._dp,1._dp))
 

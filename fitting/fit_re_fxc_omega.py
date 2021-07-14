@@ -1,12 +1,12 @@
 import numpy as np
 from itertools import product
 import multiprocessing as mp
+from os import fsync
 import matplotlib.pyplot as plt
 from scipy.optimize import leastsq
 
 import settings
 
-pi = 3.141592653589793238462643383279502884197169399375105820974944592307816406286198
 gam = 1.311028777146059809410871821455657482147216796875
 
 x,kk = np.transpose(np.genfromtxt('./test_fits/kram_kron_re_fxc.csv',delimiter=',',skip_header=1))
@@ -14,29 +14,30 @@ x,kk = np.transpose(np.genfromtxt('./test_fits/kram_kron_re_fxc.csv',delimiter='
 def error_meas(y,yref):
     return np.sum((y - yref)**2)**(0.5)/(1.0*y.shape[0])
 
-def test_fn(a,b,c,d):
+def test_fn(cp):
     """
     powr = 7.0/(2*c)
     num = 1.0/gam*(1.0 - a*x**2)
     denom = (1.0 + b*x**2 + (a/gam)**(1.0/powr)*np.abs(x)**c)**powr
     """
-    num = 1/gam*(1 - a*x**2)
-    denom = (1 + b*x**2 + c*x**4 + d*x**6 + (a/gam)**(16/7)*x**8)**(7/16)
+    num = 1/gam*(1 - cp[0]*x**2)
+    denom = (1 + cp[1]*x**2 + cp[2]*x**4 + cp[3]*x**6 + (cp[0]/gam)**(16/7)*x**8)**(7/16)
     return num/denom
 
 def wrap_err_lsq(var):
-    a,b,c,d = var
-    ty = test_fn(a,b,c,d)
+    ty = test_fn(var)
     return (ty - kk)**2#error_meas(ty,kk)
 
+def wrap_res_scal(var):
+    return np.sum(wrap_err_lsq(var))
+
 def wrap_err(var):
-    a,b,c,d = var
-    ty = test_fn(a,b,c,d)
+    ty = test_fn(var)
     return error_meas(ty,kk)
 
 def kramers_kronig_plot(pars=None):
     if pars is not None:
-        mod = test_fn(pars[0],pars[1],pars[2],pars[3])
+        mod = test_fn(pars)
         np.savetxt('./test_fits/new_hx.csv',np.transpose((x,kk,mod)),delimiter=',',header='x, K-K, new h(x)',fmt='%.18f')
     om,fxc_kk,fxc_mod = np.transpose(np.genfromtxt('./test_fits/new_hx.csv',delimiter=',',skip_header=1))
     fig,ax = plt.subplots(figsize=(10,6))
@@ -53,64 +54,90 @@ def kramers_kronig_plot(pars=None):
     return
 
 def hx_fit_main():
-    a_bds = [0.0,2.0]
-    b_bds = [0.0,4.0]
-    c_bds = [0.0,4.0]
-    d_bds = [0.0,4.0]
 
-    f = leastsq(wrap_err_lsq,[1.,1.,1.,1.])
-    aa,bb,cc,dd = f[0]
+    npar = 4 # number of fit parameters
+    pars = leastsq(wrap_err_lsq,np.ones(npar))[0]
+    opt_res = wrap_res_scal(pars)
 
-    fling = 2#10
-    step_l = [0.02,0.01,0.005,0.002,0.001,0.0005,0.0002,0.0001] # steps in naive grid search
+    # see if we can improve the least squares fit slightly
+    nrefine = 50 # number of refinement steps
+    adj = 0.25 # effective search radius
+    nsearch = 10 # number of candidates per parameter, per step
+    old_opt_res = opt_res
 
-    for istep, step in enumerate(step_l):
+    ofl = open('./fitting/hx_fit_log.csv','w+')
+    cstr = ''
+    for i in range(npar):
+        cstr += 'c'+str(i) +', '
 
-        if istep == 0: # for the initial, wide search, use special bounds
-            continue
-            a_min = step
-            a_max = a_bds[1]#1.5 + 0.5*step
-            b_min = step
-            b_max = b_bds[1]#1.0 + 0.5*step
-            c_min = step#c_bds[0]
-            c_max = c_bds[1]
-            d_min = step#c_bds[0]
-            d_max = d_bds[1]
+    ofl.write('Iteration, '+ cstr + ' SSR \n')
+    ofl.write(('LSQ, '+'{:}, '*(npar) + '{:}, \n').format(*pars, opt_res))
+    ofl.flush()
+    fsync(ofl.fileno())
+
+    dpars = np.zeros(npar+1)
+
+    for irefine in range(nrefine):
+
+        srad = adj**(irefine+1)
+        decr = 1 - srad
+        incr = 1 + srad
+
+        tmppars = np.zeros((npar,nsearch))
+        for ipar in range(npar):
+            tmppars[ipar] = np.linspace(pars[ipar]*decr,pars[ipar]*incr,nsearch)
+        worklist = product(*tmppars)
+
+        res_l = np.zeros(nsearch**npar)
+        if settings.nproc > 1:
+            pool = mp.Pool(processes=settings.nproc)
+            tout = pool.map(wrap_res_scal,worklist)
+            pool.close()
+            for itmp,tmp in enumerate(tout):
+                res_l[itmp] = tmp
         else:
-            a_min = max([a_bds[0],aa - fling*step_l[istep-1]]) # impose restrictions on bounds for coeffs
-            a_max = min([a_bds[1],aa + fling*step_l[istep-1]]) # while expanding search region within some
+            for itmp in range(nsearch**npar):
+                res_l[itmp] = wrap_res_scal(tpars)
 
-            b_min = max([b_bds[0],bb - fling*step_l[istep-1]]) # basin of previous best parameters
-            b_max = min([b_bds[1],bb + fling*step_l[istep-1]])
+        tres = res_l.min()
+        if tres < opt_res:
+            opt_res = tres
+            tpars = list(product(*tmppars))[np.argmin(res_l)]
+            for j in range(npar):
+                pars[j] = tpars[j]
 
-            c_min = max([c_bds[0],cc - fling*step_l[istep-1]])
-            c_max = min([c_bds[1],cc + fling*step_l[istep-1]])
+        if irefine > 0:
+            # check to see how much parameters change, and how much residuals
+            # change after each step
+            for j in range(npar):
+                dpars[j] = abs(lpars[j] - pars[j])/abs(lpars[j])
+            dpars[npar] = abs(old_opt_res - opt_res)/abs(old_opt_res)
+        lpars = pars[:]
 
-            d_min = max([d_bds[0],dd - fling*step_l[istep-1]])
-            d_max = min([d_bds[1],dd + fling*step_l[istep-1]])
+        ofl.write(('{:},'*(npar+1) + '{:}\n').format(irefine,*pars,opt_res))
+        ofl.flush()
+        fsync(ofl.fileno())
 
-        a_l = np.arange(a_min,a_max,step)
-        b_l = np.arange(b_min,b_max,step)
-        c_l = np.arange(c_min,c_max,step)
-        d_l = np.arange(d_min,d_max,step)
-        tlist = product(a_l,b_l,c_l,d_l)
+        if irefine > 10 and abs(old_opt_res - opt_res)/abs(old_opt_res) < 1.e-6:
+            break
+        old_opt_res = opt_res
 
-        pool = mp.Pool(processes=settings.nproc)
-        tout = pool.map(wrap_err,tlist)
-        pool.close()
-        ind = np.argmin(np.asarray(tout))
-        nlist = list(product(a_l,b_l,c_l,d_l))
-        aa,bb,cc,dd=nlist[ind]
+    ofl.write('==================\n')
+    ofl.write(cstr+'\n')
+    ofl.write(('{:},'*(npar-1) + '{:}\n').format(*pars))
+    true_res = wrap_res_scal(pars)
+    ofl.write(('Sum of square residuals =, {:}\n').format(true_res))
+    ofl.write('==================\n')
+    trunc_pars = [round(apar,6) for apar in pars]
+    ofl.write(('{:},'*(npar-1) + '{:} (rounded) \n').format(*trunc_pars))
+    round_res = wrap_res_scal(trunc_pars)
+    ofl.write(('Sum of square residuals (rounded pars) =, {:}, (abs diff = {:})\n').format(round_res,abs(true_res - round_res)))
+    ofl.close()
 
-    logfile = './fitting/hx_fit_log.csv'
-    ostr = 'a param, b param, c param, d param\n'
-    ostr += '{:}, {:}, {:}, {:}\n'.format(aa,bb,cc,dd)
-    ostr += 'error {:} \n'.format(np.asarray(tout)[ind])
-    with open(logfile,'w+') as logf:
-        logf.write(ostr)
+    np.savetxt('./test_fits/new_hx.csv',np.transpose((x,kk,test_fn(pars))),delimiter=',',header='x, K-K, new h(x)')
+    np.savetxt('./test_fits/new_hx_rounded.csv',np.transpose((x,kk,test_fn(trunc_pars))),delimiter=',',header='x, K-K, new h(x)')
 
-    np.savetxt('./test_fits/new_hx.csv',np.transpose((x,kk,test_fn(aa,bb,cc,dd))),delimiter=',',header='x, K-K, new h(x)',fmt='%.18f')
-    return aa,bb,cc,dd
+    return pars
 
 if __name__ == "__main__":
 

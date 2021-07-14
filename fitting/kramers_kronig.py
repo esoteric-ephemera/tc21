@@ -4,7 +4,7 @@ import multiprocessing
 import settings
 from utilities.integrators import nquad
 
-pi = np.pi
+pi = settings.pi
 
 def densvars(rs):
     dvars = {'rs': rs, 'kf': (9*pi/4.0)**(1.0/3.0)/rs, 'n': 3.0/(4.0*pi*rs**3), 'wp': (3.0/rs**3)**(0.5)}

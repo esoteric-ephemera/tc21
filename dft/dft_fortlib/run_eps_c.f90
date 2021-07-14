@@ -4,7 +4,7 @@ program jellium_ec
   integer, parameter :: dp = selected_real_kind(15, 307)
   real(dp),parameter :: pi = 3.14159265358979323846264338327950288419_dp
 
-  integer, parameter :: ninf=200, nlam=100
+  integer, parameter :: ninf=200, nlam=200
 !  real(dp), parameter :: rs_min=1._dp,rs_max = 10._dp,drs = 0.1_dp
 
   integer, parameter :: nrs = 129!ceiling((rs_max-rs_min)/drs)
@@ -25,10 +25,13 @@ program jellium_ec
   !$OMP PARALLEL DO
   do irs = 1,nrs
     !rsl(irs) = rs_min + drs*irs
-    call get_eps_c(ninf,nlam,rsl(irs),ec_rpa(irs),ec_alda(irs),ec_mcp07(irs)&
-   &    ,ec_tc21(irs))
-    print*,ec_rpa(irs),ec_alda(irs)
-    print*,ec_mcp07(irs),ec_tc21(irs)
+    if (rsl(irs) > 10._dp) then
+      call get_eps_c(100,100,rsl(irs),ec_rpa(irs),ec_alda(irs),ec_mcp07(irs)&
+     &    ,ec_tc21(irs))
+    else
+      call get_eps_c(200,200,rsl(irs),ec_rpa(irs),ec_alda(irs),ec_mcp07(irs)&
+     &    ,ec_tc21(irs))
+    end if
   end do
   !$OMP END PARALLEL DO
   !stop

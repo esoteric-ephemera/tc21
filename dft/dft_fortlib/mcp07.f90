@@ -55,7 +55,7 @@ subroutine mcp07_dynamic(q,freq,rs,nw,fxc)
   complex(dp), dimension(nw) :: fxcw
 
   call mcp07_static(q,rs,'PZ81',fxcq,f0,akn)
-  call gki_dynamic_real_freq(rs,freq,nw,'PZ81',.false.,fxcw)
+  call gki_dynamic_real_freq(rs,freq,nw,'PZ81',fxcw)
 
   fxc = (1._dp + exp(-akn*q**2)*(fxcw/f0 - 1._dp))*fxcq
 
@@ -75,7 +75,7 @@ subroutine mcp07_k0(q,freq,rs,nw,fxc)
   complex(dp), dimension(nw) :: fxcw
 
   call mcp07_static(q,rs,'PZ81',fxcq,f0,akn)
-  call gki_dynamic_real_freq(rs,freq,nw,'PZ81',.false.,fxcw)
+  call gki_dynamic_real_freq(rs,freq,nw,'PZ81',fxcw)
 
   fxc = fxcw/f0*fxcq
 

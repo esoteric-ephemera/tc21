@@ -69,10 +69,10 @@ def plasmon_dispersion_single(x_l,rs):
 
         if do_rev:
             fp = settings.TC_pars
-            kscr = fp['a']*dvs['kF']/(1.0 + fp['b']*dvs['kF']**(0.5))
-            F1 = fp['c']*dvs['rs']**2
-            F2 = F1 + (1.0 - F1)*np.exp(-fp['d']*(q/kscr)**2)
-            fxcu = gki_real_freq_taylor_series(dvs,F2*to,F2*to.real,revised=do_rev,param=wlda)
+            kscr = dvs['kF']*(fp['a'] + fp['b']*dvs['kF']**(1.5))/(1 + dvs['kF']**2)
+            sclfun = (dvs['rs']/fp['c'])**2
+            pscl = sclfun + (1 - sclfun)*np.exp(-fp['d']*(q/kscr)**2)
+            fxcu = gki_real_freq_taylor_series(dvs,pscl*to,pscl*to.real,revised=do_rev,param=wlda)
             #fxc_dinf = gki_dynamic_real_freq(dvs,F2*dinf,x_only=False,revised=do_rev,param=wlda,dimensionless=False)
         else:
             fxcu = gki_real_freq_taylor_series(dvs,to,to.real,revised=do_rev,param=wlda)
@@ -129,15 +129,19 @@ def plasmon_dispersion():
     isl = 0
     if settings.fxc == 'MCP07':
         ax[0].set_ylim([0.6,1.6])
+        #ax[1].set_ylim([-0.045,0.0])
     elif settings.fxc == 'TC':
         ax[0].set_ylim([0.85,1.6])
-    ax[1].set_ylim([-0.045,0.0])
+        #ax[1].set_ylim([-0.015,0.0])
+
+    ymin = -.015
 
     for irs,rs in enumerate(settings.rs_list):
 
         xn,wpdl_cmplx = plasmon_dispersion_single(x_l,rs)
         fname = './freq_data/wpq_disp_{:}_rs_{:}.csv'.format(settings.fxc,rs)
         np.savetxt(fname,np.transpose((xn,wpdl_cmplx.real,wpdl_cmplx.imag)),delimiter=',',header='q/kF, Re omega_p(q)/ omega_p(0), Im omega_p(q)/ omega_p(0)')
+        ymin = min(ymin,(wpdl_cmplx.imag).min())
         wpdl = wpdl_cmplx.real
         wpdl_im = wpdl_cmplx.imag
         wind = int(np.ceil(0.7*len(xn)))
@@ -169,6 +173,7 @@ def plasmon_dispersion():
         """
         ax[0].annotate('$r_{\\mathrm{s}}='+str(rs)+'$',pos,color=clr,fontsize=20)
 
+    ax[1].set_ylim([1.01*ymin,0.0])
     ax[0].yaxis.set_minor_locator(MultipleLocator(0.1))
     ax[0].yaxis.set_major_locator(MultipleLocator(.2))
     ax[1].yaxis.set_minor_locator(MultipleLocator(0.005))

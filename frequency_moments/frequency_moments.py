@@ -254,7 +254,7 @@ def sq_plots():
     fig,ax = plt.subplots(figsize=(8,6))
 
     for irs,rs in enumerate(settings.rs_list):
-        q_l,sq = np.transpose(np.genfromtxt('./freq_data/{:}_Sq_rs_{:}_gk_adap.csv'.format(settings.fxc,rs),delimiter=',',skip_header=1))
+        q_l,sq = np.transpose(np.genfromtxt('./freq_data/{:}_Sq_rs_{:}_original.csv'.format(settings.fxc,rs),delimiter=',',skip_header=1))
         plt.plot(q_l,sq,color=settings.clist[irs],linewidth=2.5,label='$r_s={:}$'.format(rs))
         if settings.fxc == 'TC':
             pos_dict = {4: (.45,.4), 69: (1.55,.3) }
@@ -270,8 +270,14 @@ def sq_plots():
     ax.set_ylabel('$S(q)$',fontsize=24)
     ax.tick_params(axis='both',labelsize=20)
 
-    if settings.fxc != 'TC':
-        ax.legend(fontsize=20,loc='lower right')
+    if settings.fxc == 'TC':
+        flbl = 'TC21'
+    else:
+        flbl = settings.fxc
+
+    ax.annotate(flbl,(0.85*settings.q_bounds['max'],0.05),fontsize=20)
+    #if settings.fxc != 'TC':
+    #    ax.legend(fontsize=20,loc='lower right')
     #plt.show()
     plt.savefig('./figs/Sq_{:}.pdf'.format(settings.fxc),dpi=600,bbox_inches='tight')
     return
@@ -281,7 +287,7 @@ def sq_tc_mcp07_comp_plot():
     fig,ax = plt.subplots(figsize=(8,6))
 
     for irs,rs in enumerate(settings.rs_list):
-        q_l,sq = np.transpose(np.genfromtxt('./freq_data/TC_Sq_rs_{:}_gk_adap.csv'.format(rs),delimiter=',',skip_header=1))
+        q_l,sq = np.transpose(np.genfromtxt('./freq_data/TC_Sq_rs_{:}_original.csv'.format(rs),delimiter=',',skip_header=1))
         plt.plot(q_l,sq,color=settings.clist[irs],linewidth=2.5,label='$r_s={:}$'.format(rs))
         q_l,sq = np.transpose(np.genfromtxt('./freq_data/MCP07_Sq_rs_{:}_gk_adap.csv'.format(rs),delimiter=',',skip_header=1))
         plt.plot(q_l,sq,color=settings.clist[irs],linewidth=2.5,linestyle='--')

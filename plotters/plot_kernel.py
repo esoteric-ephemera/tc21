@@ -29,6 +29,8 @@ def wrap_kernel(q,freq,rs):
         wLDA = 'PZ81'
     elif settings.fxc == 'TC':
         qTC = True
+    else:
+        raise SystemExit('Unsupported kernel for plotting,',settings.fxc)
     return mcp07_dynamic(q,freq,dvars,axis='real',revised=qTC,pars=settings.TC_pars,param=wLDA)
 
 def get_crossing(q_init,freq,rs):
@@ -127,7 +129,12 @@ def fxc_plotter(rs):
     else:
         plt.title(settings.fxc+' dressed potential, bulk jellium $r_{\\mathrm{s}}=$'+str(rs),fontsize=24)
     """
-    plt.title('$r_{\\mathrm{s}}=$'+str(rs)+' jellium',fontsize=20)
+    if settings.fxc == 'TC':
+        flbl = 'TC21'
+    else:
+        flbl = settings.fxc
+
+    plt.title(flbl+', $r_{\\mathrm{s}}=$'+str(rs)+' jellium',fontsize=20)
     ax.tick_params(axis='both',labelsize=20)
     #plt.show()
     plt.savefig('./figs/kernel_plots/veff_'+settings.fxc+'_rs_'+str(rs)+'.pdf',dpi=600,bbox_inches='tight')
@@ -166,8 +173,15 @@ def fxc_plotter(rs):
 
         plt.suptitle('$r_{\\mathrm{s}}=$'+str(rs)+' jellium',fontsize=20)
         ax[i].tick_params(axis='both',labelsize=20)
-    ax[1].set_ylabel('$\\widetilde{\\epsilon}^{\\mathrm{'+settings.fxc+'}}(q,\omega)$',fontsize=24)
-    ax[0].set_ylabel('$\\widetilde{\\epsilon}^{\\mathrm{RPA}}(q,\omega)$',fontsize=24)
+    if settings.fxc == 'TC':
+        flbl = 'TC21'
+    else:
+        flbl = settings.fxc
+    ax[0].annotate('RPA',(0.85*x_l[-1],-1.95),fontsize=20)
+    ax[1].annotate(flbl,(0.85*x_l[-1],-1.95),fontsize=20)
+    ax[0].set_ylabel('$\\widetilde{\\epsilon}(q,\omega)$',fontsize=24)
+    #ax[1].set_ylabel('$\\widetilde{\\epsilon}^{\\mathrm{'+flbl+'}}(q,\omega)$',fontsize=24)
+    #ax[0].set_ylabel('$\\widetilde{\\epsilon}^{\\mathrm{RPA}}(q,\omega)$',fontsize=24)
     ax[0].legend(fontsize=20)
 
     plt.savefig('./figs/kernel_plots/eps_tilde_'+settings.fxc+'_rs_'+str(rs)+'.pdf',dpi=600,bbox_inches='tight')

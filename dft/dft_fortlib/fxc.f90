@@ -44,7 +44,7 @@ subroutine fxc_selector(q,w,rs,nw,wfxc,fxc)
     call mcp07_k0(q,w,rs,nw,fxc)
 
   else if (wfxc(1:4)=='DLDA') then
-    call gki_dynamic_real_freq(rs,w,nw,'PZ81',.false.,fxc)
+    call gki_dynamic_real_freq(rs,w,nw,'PZ81',fxc)
 
   else if (wfxc(1:4)=='ALDA') then
     call alda(rs,'PZ81',fxcr)
@@ -77,7 +77,7 @@ subroutine fxc_gki_ifreq(w,rs,nw,digrid,diwg,ng,ifxc)
 
   call high_freq(rs,'PZ81',finf,tmp)
 
-  call gki_dynamic_real_freq(rs,digrid,ng,'PZ81',.false.,fxc_tmp)
+  call gki_dynamic_real_freq(rs,digrid,ng,'PZ81',fxc_tmp)
 
   do iw = 1,nw
     denom = digrid**2 + w(iw)**2

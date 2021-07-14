@@ -1,69 +1,84 @@
 
-subroutine tc21_dynamic(q,freq,nw,rs,fxc)
+subroutine tc21_dynamic(q,freq,nw,freqax,rs,fxc)
 
   implicit none
   integer, parameter :: dp = selected_real_kind(15, 307)
 
   real(dp), parameter :: pi = 3.14159265358979323846264338327950288419_dp
-  real(dp), parameter :: ca = 4.01_dp, cb = 1.21_dp, cc = 0.11_dp, cd = 1.07_dp
+  real(dp), parameter :: ca = 3.846991_dp, cb = 0.471351_dp, cc = 4.346063_dp
+  real(dp), parameter :: cd = 0.881313_dp
 
   integer, intent(in) :: nw
   real(dp), intent(in) :: q,freq(nw),rs
-  complex(dp), intent(out) :: fxc
+  character(len=4), intent(in) :: freqax
+  complex(dp), intent(out) :: fxc(nw)
 
-  real(dp) :: kf,fxcq,f0,kscr,tmp,fscl,qdim2
-  complex(dp) :: fxcw
+  real(dp) :: kf,fxcq,f0,kscr,tmp,pscl,fscl,qdim2
+  complex(dp) :: fxcw(nw)
 
   call mcp07_static(q,rs,'PW92',fxcq,f0,tmp)
 
   kf = (9*pi/4._dp)**(1._dp/3._dp)/rs
-  kscr = ca*kf/( 1._dp + cb*kf**(0.5_dp) )
+  kscr = kf*(ca + cb*kf**(1.5_dp))/( 1._dp + kf**2 )
   qdim2 = (q/kscr)**2
-  fscl = cc*rs**2 + (1._dp - cc*rs**2)*exp(-cd*qdim2)
+  fscl = (rs/cc)**2
+  pscl = fscl + (1._dp - fscl)*exp(-cd*qdim2)
 
-  call gki_dynamic_real_freq(rs,fscl*freq,nw,'PW92',.true.,fxcw)
+  call gki_dynamic(rs,pscl*freq,nw,freqax,fxcw)
 
   fxc = (1._dp + exp(-qdim2)*(fxcw/f0 - 1._dp))*fxcq
 
 end subroutine tc21_dynamic
 
 
-subroutine fxc_tc21_ifreq(q,w,nw,rs,digrid,diwg,ng,ifxc)
+subroutine gki_dynamic(rs,freq,nw,axis,fxc)
 
+  ! TC21 parameterization of GKI kernel
+  ! for purely real, or purely imaginary frequencies
   implicit none
   integer, parameter :: dp = selected_real_kind(15, 307)
   real(dp), parameter :: pi = 3.14159265358979323846264338327950288419_dp
-  real(dp), parameter :: ca = 4.01_dp, cb = 1.21_dp, cc = 0.11_dp, cd = 1.07_dp
+  real(dp), parameter :: gam = 1.311028777146059809410871821455657482147216796875_dp
+  real(dp), parameter :: cc = 4.81710873550434914847073741839267313480377197265625_dp
 
-  integer, intent(in) :: ng,nw
-  real(dp), intent(in) :: q,rs,w(nw)
-  real(dp), dimension(ng), intent(in) :: digrid,diwg
-  real(dp), intent(out) :: ifxc(nw)
+  integer, intent(in) :: nw
+  real(dp), intent(in) :: rs
+  real(dp), dimension(nw), intent(in) :: freq
+  character(len=4), intent(in) :: axis
+  complex(dp), dimension(nw), intent(out) :: fxc
 
-  integer :: iw
-  real(dp) :: finf,tmp,ifxcw(nw)
-  real(dp) :: kf,fxcq,f0,kscr,fscl,qdim2
-  real(dp), dimension(ng) :: integrand,denom
-  complex(dp), dimension(ng) :: fxc_tmp
+  real(dp), parameter, dimension(4) :: cp = (/0.174724_dp, 3.224459_dp, 2.221196_dp, &
+   &    1.891998_dp /)
+  real(dp), parameter, dimension(5) :: kp = (/1.219946_dp, 0.973063_dp, 0.42106_dp, &
+   &    1.301184_dp, 1.007578_dp /)
 
-  call mcp07_static(q,rs,'PW92',fxcq,f0,tmp)
+  real(dp) :: bn,finf
+  real(dp), dimension(nw) :: u,gx,hx,jx
 
-  kf = (9*pi/4._dp)**(1._dp/3._dp)/rs
-  kscr = ca*kf/( 1._dp + cb*kf**(0.5_dp) )
-  qdim2 = (q/kscr)**2
-  fscl = cc*rs**2 + (1._dp - cc*rs**2)*exp(-cd*qdim2)
+  fxc = 0._dp
+  call high_freq(rs,'PW92',finf,bn)
+  u = bn**(0.5_dp)*freq
 
-  call high_freq(rs,'PW92',finf,tmp)
+  if (axis == 'REAL') then
 
-  call gki_dynamic_real_freq(rs,fscl*digrid,ng,'PW92',.true.,fxc_tmp)
+    gx = u/(1._dp + u**2)**(5._dp/4._dp)
 
-  do iw = 1,nw
-    denom = digrid**2 + w(iw)**2
-    integrand = w(iw)*(real(fxc_tmp) - finf) + digrid*aimag(fxc_tmp)
+    hx = 1._dp/gam*(1._dp - cp(1)*u**2)/(1 + cp(2)*u**2 + cp(3)*u**4 &
+   &     + cp(4)*u**6 + (cp(1)/gam)**(16._dp/7._dp)*u**8)**(7._dp/16._dp)
 
-    ifxcw(iw) = dot_product(diwg, integrand/denom)/(2*pi) + finf
-  end do
+    fxc = finf - cc*bn**(3._dp/4._dp)*(hx + gx*cmplx(0._dp,1._dp))
 
-  ifxc = (1._dp + exp(-qdim2)*(ifxcw/f0 - 1._dp))*fxcq
+  else if (axis == 'IMAG') then
 
-end subroutine fxc_tc21_ifreq
+    jx = 1._dp/gam*(1._dp - kp(1)*u + kp(2)*u**2)/(1._dp + kp(3)*u**2 + kp(4)*u**4 &
+   &     + kp(5)*u**6 + (kp(1)/gam)**(16._dp/7._dp)*u**8)**(7._dp/16._dp)
+    fxc = finf - cc*bn**(3._dp/4._dp)*jx! + 0._dp*cmplx(0._dp,1._dp)
+
+  else
+
+    print*,'Unknown frequnecy axis ',axis,' in revised GKI!'
+    stop
+
+  end if
+
+end subroutine gki_dynamic

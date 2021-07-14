@@ -265,7 +265,7 @@ def alpha_plotter(fxcl,sign_conv=1):
     ax[1].set_xlabel('$\\omega$ (eV)',fontsize=20)
     ax[0].set_ylabel('$\\mathrm{Re}~\\alpha(\\omega)$',fontsize=20)
     ax[1].set_ylabel('$\\mathrm{Im}~\\alpha(\\omega)$',fontsize=20)
-    axpars = {'y': {'Si': (.1,.2,.1,.2),'C':(.025,.05,.025,.05), 'Al': (.05,.1,.05,.1), 'Na': (.025,.05,.025,.05)},
+    axpars = {'y': {'Si': (.1,.2,.1,.2),'C':(.025,.05,.025,.05), 'Al': (.05,.1,.025,.05), 'Na': (.025,.05,.025,.05)},
     'x': {'Si': (1,2), 'C': (1,2), 'Al': (25,50), 'Na': (10,20)}}
     if crystal == 'Si':
         if bigrange:

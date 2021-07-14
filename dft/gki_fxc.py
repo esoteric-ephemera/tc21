@@ -71,7 +71,7 @@ def gki_dynamic_real_freq(dv,u,x_only=False,revised=False,param='PZ81',dimension
     gx = xk/((1.0 + xk**2)**(5.0/4.0))
 
     if revised:
-        cc1,cc2,cc3,cc4 = (0.17467008438086054, 3.2237984506125503, 2.224790597667039, 1.8906775733050594)
+        cc1,cc2,cc3,cc4 = (0.174724,3.224459,2.221196,1.891998)
         hx = 1/gam*(1 - cc1*xk**2)/(1 + cc2*xk**2 + cc3*xk**4 + cc4*xk**6 + (cc1/gam)**(16/7)*xk**8)**(7/16)
         """
         apar,bpar,cpar = (0.1756,1.0376,2.9787)
@@ -99,7 +99,7 @@ def gki_dynamic(dv,u,axis='real',x_only=False,revised=False,param='PZ81',use_par
         fxcu = gki_dynamic_real_freq(dv,u,x_only=x_only,revised=revised,param=param)
 
     elif axis == 'imag':
-        
+
         bn,finf = exact_constraints(dv,x_only=x_only,param=param)
         if use_par:
             if not revised and not x_only and param == 'PZ81':
@@ -107,7 +107,7 @@ def gki_dynamic(dv,u,axis='real',x_only=False,revised=False,param='PZ81',use_par
                 interp = 1.0/gam/(1.0 + (u.imag*bn**(0.5))**cpars[0])**cpars[1]
             elif revised and not x_only and param == 'PW92':
                 y = bn**(0.5)*u.imag
-                cp = [1.2246033094646769, 0.9780663544436814, 0.395541393738581, 1.3302298569459192, 1.0056767945146443]
+                cp = (1.219946,0.973063,0.42106,1.301184,1.007578)
                 interp = 1/gam*(1 - cp[0]*y + cp[1]*y**2)/(1 + cp[2]*y**2 + cp[3]*y**4 + cp[4]*y**6 + (cp[1]/gam)**(16/7)*y**8)**(7/16)
                 """
                 cpars = [0.99711536, 1.36722527, 0.93805229, 0.0101391,  0.71194338]
@@ -162,7 +162,7 @@ def gki_real_freq_taylor_series(dv,u,uc,revised=False,param='PZ81'):
     dgx = (1 - 3/2*xk**2)/(1.0 + xk**2)**(9/4)
 
     if revised:
-        cc1,cc2,cc3,cc4 = (0.17467008438086054, 3.2237984506125503, 2.224790597667039, 1.8906775733050594)
+        cc1,cc2,cc3,cc4 = (0.174724,3.224459,2.221196,1.891998)
         hx_num = (1 - cc1*xk**2)
         hx_den = (1 + cc2*xk**2 + cc3*xk**4 + cc4*xk**6 + (cc1/gam)**(16/7)*xk**8)
         hx_den_pow = hx_den**(7/16)

@@ -3,6 +3,19 @@ from glob import glob
 from settings import pi
 #from utilities.interpolators import bilinear_interp
 
+"""
+    NB: to use the QMC data of
+    M. Panholzer, M. Gatti, L. Reining, Phys. Rev. Lett. 120, 166402 (2018).
+    DOI 10.1103/PhysRevLett.120.166402
+    https://link.aps.org/doi/10.1103/PhysRevLett.120.166402
+
+    please download it from:
+    https://etsf.polytechnique.fr/research/connector/2p2h-kernel
+
+    This code assumes the ``New kernel data with a 0.2 rs spacing'' file is used
+    (~ 14 MB)
+"""
+
 def import_data():
 
     tfiles = glob('/Users/aaronkaplan/Dropbox/phd.nosync/mcp07_revised/code/dft/fxc_qmc_tab/fxc_*_2p2h_fine_L.txt')
