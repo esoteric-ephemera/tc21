@@ -64,11 +64,11 @@ def kf_crit_plots():
         lbl = fxc
         lblx = dat[ipos,0]
         lbly = 1.05*dat[ipos,1]
-        if fxc == 'TC':
-            lbl = 'TC21'
-        elif fxc == 'MCP07':
+        if fxc == 'MCP07':
             lblx = 1.2
             lbly = 0.004
+        elif fxc == 'TC':
+            lbl = 'rMCP07'
         ax.annotate(lbl,(lblx,lbly),color=clist[ifxc],fontsize=20)
         kfcm = dat[:,1].max()
         print(('fxc_{:}, crit kf = {:} 1/bohr, crit rs = {:} bohr').format(fxc,kfcm,cfac/kfcm))

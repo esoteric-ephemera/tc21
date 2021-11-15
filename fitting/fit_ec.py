@@ -3,7 +3,7 @@ import multiprocessing as mp
 from itertools import product
 from os import path,fsync
 from scipy.optimize import least_squares,minimize
-
+from functools import partial
 
 import settings
 from dft.lsda import ec_pw92
@@ -15,12 +15,6 @@ for rs in settings.rs_list:
     ec_ref[rs],_,_ = ec_pw92(rs,0.0)
 
 establish_dependencies()
-grid,wgg,ws = set_up_grid(settings.z_pts,settings.lambda_pts,settings.u_pts)
-fgrid = np.zeros((grid.shape[0],4))
-fgrid[:,0]=grid[:,0]
-fgrid[:,1]=grid[:,1]
-fgrid[:,2]=grid[:,2]
-fgrid[:,3]=wgg[:]
 
 def residuals(vals,ref,method='uniform'):
     if method == 'uniform': # even weighting, quick return
@@ -61,8 +55,15 @@ def write_to_file(ec,err):
     return
 
 def plot_TC(pars):
-    # now using fortran libraries for correlation energy
+    grid,wgg,ws = set_up_grid(settings.z_pts,settings.lambda_pts,settings.u_pts)
+    igrid = np.zeros((grid.shape[0],4))
+    igrid[:,0]=grid[:,0]
+    igrid[:,1]=grid[:,1]
+    igrid[:,2]=grid[:,2]
+    igrid[:,3]=wgg[:]
+
     if settings.eps_c_flib:
+        # use fortran libraries for correlation energy
         eps_c_plots(use_flib=True)
     else:
         rslist = [i/10.0 for i in range(1,10)]
@@ -71,13 +72,13 @@ def plot_TC(pars):
         for rs in rslist:
             if rs not in ec_ref:
                 ec_ref[rs],_,_ = ec_pw92(rs,0.0)
-        _,ec,err=get_errors(pars,rsl=rslist,multi=True)
+        _,ec,err=get_errors(pars,igrid,rsl=rslist,multi=True)
         write_to_file(ec,err)
         wfile = './eps_data/epsilon_C_{:}.csv'.format(settings.fxc)
-        eps_c_plots(targ=wfile)
+        eps_c_plots(targ=[settings.fxc,wfile])
     return
 
-def get_errors(pars,rsl=[],multi=False):
+def get_errors(pars,igrid,rsl=[],multi=False):
 
     par_d = {}
     par_d['a'],par_d['b'],par_d['c'],par_d['d'] = pars
@@ -86,30 +87,32 @@ def get_errors(pars,rsl=[],multi=False):
         rsl = settings.rs_list
     if len(rsl)>0:
         if multi:
-            inp = [(par_d,ars) for ars in rsl]
-            pool = mp.Pool(processes=min(len(rsl),settings.nproc))
-            tout = pool.starmap(wrapper,inp)
+            wrapped_obj = partial(get_errors_wrapper,par=par_d,igrid=igrid)
+            #inp = [(par_d,ars) for ars in rsl]
+            pool = mp.Pool(processes=settings.nproc)
+            #tout = pool.starmap(wrapper,inp)
+            tout = pool.map(wrapped_obj,rsl)
             pool.close()
             ecd = {}
             for anout in tout:
                 rs,ec = anout
                 ecd[rs] = ec
         else:
-            ecd = eps_quick('user',pars=par_d,inps=fgrid,rs_l=rsl)
+            ecd = eps_quick('user',pars=par_d,inps=igrid,rs_l=rsl)
     else:
-        ecd = eps_quick('user',pars=par_d,inps=fgrid)
+        ecd = eps_quick('user',pars=par_d,inps=igrid)
     err = residuals(ecd,ec_ref,method='uniform')
 
     return par_d,ecd,err
 
-def get_scalar_error(pars):
+def get_scalar_error(pars,igrid):
     par_d = {}
     par_d['a'],par_d['b'],par_d['c'],par_d['d'] = pars
-    ecd = eps_quick('user',pars=par_d,inps=fgrid,rs_l=settings.rs_list)
+    ecd = eps_quick('user',pars=par_d,inps=igrid,rs_l=settings.rs_list)
     err = residuals(ecd,ec_ref,method='uniform')
     return err['res']
 
-def wrap_lsq(pars):
+def wrap_lsq(pars,igrid):
     if settings.fit_c:
         if settings.fit_d:
             wpars = pars
@@ -117,14 +120,18 @@ def wrap_lsq(pars):
             wpars = (pars[0],pars[1],pars[2],0.0)
     else:
         wpars = (pars[0],pars[1],0.0,0.0)
-    _,_,errd = get_errors(wpars,multi=True)
+    _,_,errd = get_errors(wpars,igrid,multi=True)
     res = np.zeros(len(settings.rs_list))
     for irs,rs in enumerate(settings.rs_list):
         res[irs] = errd[rs]**2
     return res
 
-def wrapper(par,rs):
-    ecd = eps_quick('user',pars=par,inps=fgrid,rs_l=[rs])
+def wrapper(par,rs,igrid):
+    ecd = eps_quick('user',pars=par,inps=igrid,rs_l=[rs])
+    return rs,ecd[rs]#abs(ecd[rs] - ec_ref[rs])
+
+def get_errors_wrapper(rs,par,igrid):
+    ecd = eps_quick('user',pars=par,inps=igrid,rs_l=[rs])
     return rs,ecd[rs]#abs(ecd[rs] - ec_ref[rs])
 
 def fit_optimal():
@@ -142,6 +149,15 @@ def fit_optimal():
 def ec_fitting():
 
     fit_regex = ['TC','QV_TC']
+
+    grid,wgg,ws = set_up_grid(settings.z_pts,settings.lambda_pts,settings.u_pts)
+    fgrid = np.zeros((grid.shape[0],4))
+    fgrid[:,0]=grid[:,0]
+    fgrid[:,1]=grid[:,1]
+    fgrid[:,2]=grid[:,2]
+    fgrid[:,3]=wgg[:]
+
+    wrap_scalar_err = partial(get_scalar_error,igrid=fgrid)
 
     if settings.fxc in fit_regex:
 
@@ -168,14 +184,14 @@ def ec_fitting():
             # to the starting guess
             for ipars in work_list:
                 init_set = [apar for apar in ipars]
-                lsq_fit = minimize(get_scalar_error,init_set,method='Nelder-Mead')
+                lsq_fit = minimize(wrap_scalar_err,init_set,method='Nelder-Mead')
                 #lsq_fit = least_squares(wrap_lsq,init_set,bounds=bds_list)
                 par_tmp = lsq_fit.x
                 if len(par_tmp) < 4:
                     for iapp in range(4 - len(par_tmp)):
                         par_tmp.append(0.0)
 
-                par_d_tmp,epsc_tmp,errors_tmp = get_errors(par_tmp,multi=True)
+                par_d_tmp,epsc_tmp,errors_tmp = get_errors(par_tmp,fgrid,multi=True)
                 if errors_tmp['res'] < best_lsq:
                     best_lsq = errors_tmp['res']
                     par = par_d_tmp
@@ -249,7 +265,7 @@ def ec_fitting():
 
                 if settings.nproc > 1:
                     pool = mp.Pool(processes=settings.nproc)
-                    tout = pool.map(get_scalar_error,work_l)
+                    tout = pool.map(wrap_scalar_err,work_l)
                     pool.close()
                     nbetter = 0
                     for itmp,tmp in enumerate(tout):
@@ -259,10 +275,10 @@ def ec_fitting():
                             nbetter += 1
                     if nbetter > 0:
                         parv = list(product(a_l,b_l,c_l,d_l))[ibest]
-                        par,epsc,errors = get_errors(parv,multi=True)
+                        par,epsc,errors = get_errors(parv,fgrid,multi=True)
                 else:
                     for vec in work_l:
-                        tmp_par,tmp_ec,tmp_err = get_errors(vec,multi=(settings.nproc > 1))
+                        tmp_par,tmp_ec,tmp_err = get_errors(vec,fgrid,multi=(settings.nproc > 1))
                         if tmp_err['res'] < best_res:
                             par = tmp_par
                             epsc = tmp_ec
@@ -329,7 +345,7 @@ def ec_fitting():
         ostr += 'z_pts, lambda_pts, u_pts\n {:}, {:}, {:} \n'.format(settings.z_pts,settings.lambda_pts,settings.u_pts)
         ostr += '==================\n'
         trunc_parv = [ round(par[apar],6) for apar in par ]
-        trunc_par,trunc_epsc,trunc_errors = get_errors(trunc_parv,multi=True)
+        trunc_par,trunc_epsc,trunc_errors = get_errors(trunc_parv,fgrid,multi=True)
         ostr += ('{:}, '*len(par)).format(trunc_par['a'],trunc_par['b'],trunc_par['c'],trunc_par['d']) + '\n'
         ostr += 'Residual (rounded) {:}, abs diff = {:} \n'.format(trunc_errors['res'],abs(trunc_errors['res']-errors['res']))
         ostr += '==================\n'
@@ -342,7 +358,7 @@ def ec_fitting():
         return trunc_par,trunc_epsc,trunc_errors
 
     else:
-        return get_errors({'a':None, 'b': None, 'c':None, 'd':None})
+        return get_errors({'a':None, 'b': None, 'c':None, 'd':None},fgrid)
 
 def min_func(p):
     _,_,errors=get_errors((p[0],p[1],p[2],p[3]),multi=True)

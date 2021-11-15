@@ -226,7 +226,7 @@ if __name__ == "__main__":
     # NB: ALDA grid calculated with settings.LDA == 'PZ81'
     # MCP07 grid with settings.gki_param == True
     kernel_d = {'RPA': [1.0,0.5,4,4,4], 'ALDA': [1.5,0.5,2,3,4], 'MCP07': [2.0, 1.0, 4, 4, 4]}
-    kernel_d['TC'] = kernel_d['MCP07']
+    kernel_d['rMCP07'] = kernel_d['MCP07']
     if True:#settings.fxc in kernel_d:
         pars = kernel_d['MCP07']#settings.fxc]
         up = pars[0]

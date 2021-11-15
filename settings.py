@@ -3,7 +3,7 @@ def gen_rs_list(rs_min,rs_max,nstep):
     return [round(rs_min + i*step,0) for i in range(nstep)]
 
 
-routine='UNLOC'
+routine='ECFIT'
 
 """
     routine options:
@@ -35,12 +35,20 @@ routine='UNLOC'
 """
 
 # enter as scalar or vector
-rs_list = [4,69]#[4,69]
+rs_list = [4,69]#range(1,20,6)#[4,10,30,69,100]#
 if not hasattr(rs_list,'__len__'):
     rs_list = [rs_list]
 
-# 'ALDA', 'RPA', 'MCP07', 'static MCP07', 'TC', 'QV', 'QV_MCP07', 'QV_TC'
+# 'ALDA', 'RPA', 'MCP07', 'static MCP07', 'TC' or 'rMCP07', 'QV', 'QV_MCP07', 'QV_TC'
 fxc = 'TC'
+
+"""
+    NB: fxc = TC and fxc = rMCP07 point to same kernel
+    Original name of kernel was TC, changed to rMCP07.
+    To make transition seamless in code, simply rewrap rMCP07 to TC
+"""
+if fxc == 'rMCP07':
+    fxc = 'TC'
 
 TC_par_list = [3.846991, 0.471351, 4.346063, 0.881313]#[4.470217788196006, 1.4327137309889693, 0.04466295040605292, 2.918135781120395]
 TC_par_names = ['a','b','c','d']
@@ -54,7 +62,7 @@ LDA = 'PW92'
 
 q_bounds = {'min':0.01,'max':4.01,'step':0.01} # bounds and stepsize for wavevectors
 
-moment_pars = {'calc': False,'plot': True,'sq_plots': 'comp',
+moment_pars = {'calc': False,'plot': True,'sq_plots': 'single',
 'order':0.0, 'prec':1.e-8,
 'method':'original' # method can be gk_adap (Gauss-Kronrod), original (from PNAS), or adap when order = 0
 }
@@ -124,6 +132,6 @@ d_step = 0.5
 pi = 3.141592653589793238462643383279502884197169399375105820974944592307816406286198
 Eh_to_eV = 27.211386245988 # https://physics.nist.gov/cgi-bin/cuu/Value?hr
 bohr_to_ang = 0.529177210903 # https://physics.nist.gov/cgi-bin/cuu/Value?bohrrada0
-crystal = 'Al' # the crystal to do ultranonlocality calculations with
+crystal = 'Na' # the crystal to do ultranonlocality calculations with
 # colors for plots
-clist = ['darkblue','darkorange','darkgreen','darkred','black']
+clist = ['darkblue','darkorange','darkgreen','darkred','black','tab:blue','tab:orange']

@@ -270,12 +270,10 @@ def sq_plots():
     ax.set_ylabel('$S(q)$',fontsize=24)
     ax.tick_params(axis='both',labelsize=20)
 
+    flbl = settings.fxc
     if settings.fxc == 'TC':
-        flbl = 'TC21'
-    else:
-        flbl = settings.fxc
-
-    ax.annotate(flbl,(0.85*settings.q_bounds['max'],0.05),fontsize=20)
+        flbl = 'rMCP07'
+    ax.annotate(flbl,((0.85 - 0.05*(len(flbl)-5))*settings.q_bounds['max'],0.05),fontsize=20)
     #if settings.fxc != 'TC':
     #    ax.legend(fontsize=20,loc='lower right')
     #plt.show()
@@ -297,7 +295,7 @@ def sq_tc_mcp07_comp_plot():
     ax.set_xlabel('$q/k_F$',fontsize=24)
     ax.set_ylabel('$S(q)$',fontsize=24)
     ax.tick_params(axis='both',labelsize=20)
-    plt.title('MCP07 (dashed) and TC21 (solid) $S(q)$',fontsize=20)
+    plt.title('MCP07 (dashed) and rMCP07 (solid) $S(q)$',fontsize=20)
     ax.legend(fontsize=20)
     #plt.show()
     plt.savefig('./figs/Sq_comparison.pdf',dpi=600,bbox_inches='tight')
@@ -317,7 +315,7 @@ if __name__ == "__main__":
         np.savetxt('./freq_data/{:}_S(q)_rs_{:}.csv'.format(settings.fxc,rs),np.transpose((q_l,sq)),delimiter=',',header='q,S(q)')
     """
     clist = ['tab:blue','tab:orange']
-    for ifnl,fnl in enumerate(['./freq_data/rMCP07_S(q)_rs_4.csv','./freq_data/rMCP07_S(q)_rs_69.csv']):
+    for ifnl,fnl in enumerate(['./freq_data/TC_S(q)_rs_4.csv','./freq_data/TC_S(q)_rs_69.csv']):
         dat = np.genfromtxt(fnl,delimiter=',',skip_header=1)
         rs = (fnl.split('_')[-1]).split('.csv')[0]
         plt.plot(dat[:,0],dat[:,1],label='$r_s={:}$'.format(rs),color=clist[ifnl])
@@ -332,6 +330,6 @@ if __name__ == "__main__":
     ax.set_xlabel('$q/k_F$',fontsize=18)
     ax.set_ylabel('$S(q)$',fontsize=18)
     ax.tick_params(axis='both',labelsize=16)
-    plt.title('MCP07 (dashed) and TC21 (solid) $S(q)$',fontsize=18)
+    plt.title('MCP07 (dashed) and rMCP07 (solid) $S(q)$',fontsize=18)
     ax.legend(fontsize=16)
     plt.show()

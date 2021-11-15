@@ -12,6 +12,7 @@ def mcp07_static(q,dv,param='PZ81'):
     kf = dv['kF']
     rsh = dv['rsh']
     cfac = 4*pi/kf**2
+    q2 = q**2
 
     # bn according to the parametrization of Eq. (7) of
     # Massimiliano Corradini, Rodolfo Del Sole, Giovanni Onida, and Maurizia Palummo
@@ -37,12 +38,27 @@ def mcp07_static(q,dv,param='PZ81'):
     dd = 2.0*cxc/(n**(4.0/3.0)*(4.0*pi*bn)) - 0.5*akn**2
 
     # The MCP07 kernel
-    vc = 4.0*pi/q**2
+    vc = 4.0*pi/q2
     cl = vc*bn
-    zp = akn*q**2
-    grad = 1.0 + dd*q**4
-    cutdown = 1.0 + 1.0/(akn*q**2)**2
-    fxcmcp07 = cl*(np.exp(-zp)*grad - 1.0) - cfac*cn/cutdown
+    zp = akn*q2
+    grad = 1.0 + dd*q2*q2
+    cutdown = 1.0 + 1.0/(akn*q2)**2
+
+    qeps = 1.e-6
+    fxcmcp07_taylor = f0 + q2 * ( 2*cxc/n**(4/3) + \
+        (f0*(akn**2/6 + dd) - cfac*cn*akn**2)*q2 )
+
+    if hasattr(q,'__len__'):
+        fxcmcp07 = np.zeros_like(q)
+        qm = q < qeps
+        fxcmcp07[qm] = fxcmcp07_taylor[qm]
+        qm = q >= qeps
+        fxcmcp07[qm] = cl*(np.exp(-zp)*grad - 1.0) - cfac*cn/cutdown
+    else:
+        if q < qeps:
+            fxcmcp07 = fxcmcp07_taylor
+        else:
+            fxcmcp07 = cl*(np.exp(-zp)*grad - 1.0) - cfac*cn/cutdown
 
     return fxcmcp07,f0,akn
 

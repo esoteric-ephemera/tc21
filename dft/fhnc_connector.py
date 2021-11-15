@@ -4,7 +4,7 @@ from settings import pi
 #from utilities.interpolators import bilinear_interp
 
 """
-    NB: to use the QMC data of
+    NB: to use the FHNC data of
     M. Panholzer, M. Gatti, L. Reining, Phys. Rev. Lett. 120, 166402 (2018).
     DOI 10.1103/PhysRevLett.120.166402
     https://link.aps.org/doi/10.1103/PhysRevLett.120.166402
@@ -18,7 +18,7 @@ from settings import pi
 
 def import_data():
 
-    tfiles = glob('/Users/aaronkaplan/Dropbox/phd.nosync/mcp07_revised/code/dft/fxc_qmc_tab/fxc_*_2p2h_fine_L.txt')
+    tfiles = glob('/Users/aaronkaplan/Dropbox/phd.nosync/mcp07_revised/code/dft/fxc_fhnc_tab/fxc_*_2p2h_fine_L.txt')
 
     rss = np.zeros(len(tfiles))
 
@@ -48,7 +48,7 @@ def get_sqw_single_rs(rs):
     qblock = 0
     wblock = 0
     dat = []
-    fl = '/Users/aaronkaplan/Dropbox/phd.nosync/mcp07_revised/code/dft/fxc_qmc_tab/fxc_'+rshunstr+'_2p2h_fine_L.txt'
+    fl = '/Users/aaronkaplan/Dropbox/phd.nosync/mcp07_revised/code/dft/fxc_fhnc_tab/fxc_'+rshunstr+'_2p2h_fine_L.txt'
     with open(fl) as infl:
         for iln,ln in enumerate(infl):
             if iln > 7:
@@ -81,7 +81,7 @@ def single_rs(rs,q,omega):
     wp0 = (3/rs**3)**(1/2)
     qblock = 0
     wblock = 0
-    fl = '/Users/aaronkaplan/Dropbox/phd.nosync/mcp07_revised/code/dft/fxc_qmc_tab/fxc_{:}_2p2h_fine_L.txt'.format(rshun)
+    fl = '/Users/aaronkaplan/Dropbox/phd.nosync/mcp07_revised/code/dft/fxc_fhnc_tab/fxc_{:}_2p2h_fine_L.txt'.format(rshun)
     with open(fl) as infl:
         for iln,ln in enumerate(infl):
             if iln > 7:

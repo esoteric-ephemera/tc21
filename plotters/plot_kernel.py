@@ -84,7 +84,7 @@ def fxc_plotter(rs):
     plt.tight_layout()
     fig.subplots_adjust(top=0.9)
     if settings.fxc == 'TC':
-        fig.suptitle('TC21 kernel, bulk jellium $r_{\\mathrm{s}}=$'+str(rs),fontsize=24)
+        fig.suptitle('rMCP07 kernel, bulk jellium $r_{\\mathrm{s}}=$'+str(rs),fontsize=24)
     else:
         fig.suptitle(settings.fxc+' kernel, bulk jellium $r_{\\mathrm{s}}=$'+str(rs),fontsize=24)
     #plt.show()
@@ -125,14 +125,13 @@ def fxc_plotter(rs):
     #fig.subplots_adjust(top=0.9)
     """
     if settings.fxc == 'TC':
-        plt.title('TC21 dressed potential, bulk jellium $r_{\\mathrm{s}}=$'+str(rs),fontsize=24)
+        plt.title('rMCP07 dressed potential, bulk jellium $r_{\\mathrm{s}}=$'+str(rs),fontsize=24)
     else:
         plt.title(settings.fxc+' dressed potential, bulk jellium $r_{\\mathrm{s}}=$'+str(rs),fontsize=24)
     """
+    flbl = settings.fxc
     if settings.fxc == 'TC':
-        flbl = 'TC21'
-    else:
-        flbl = settings.fxc
+        flbl = 'rMCP07'
 
     plt.title(flbl+', $r_{\\mathrm{s}}=$'+str(rs)+' jellium',fontsize=20)
     ax.tick_params(axis='both',labelsize=20)
@@ -173,12 +172,12 @@ def fxc_plotter(rs):
 
         plt.suptitle('$r_{\\mathrm{s}}=$'+str(rs)+' jellium',fontsize=20)
         ax[i].tick_params(axis='both',labelsize=20)
+
+    flbl = settings.fxc
     if settings.fxc == 'TC':
-        flbl = 'TC21'
-    else:
-        flbl = settings.fxc
+        flbl = 'rMCP07'
     ax[0].annotate('RPA',(0.85*x_l[-1],-1.95),fontsize=20)
-    ax[1].annotate(flbl,(0.85*x_l[-1],-1.95),fontsize=20)
+    ax[1].annotate(flbl,((0.85-0.05*(len(flbl)-4))*x_l[-1],-1.95),fontsize=20)
     ax[0].set_ylabel('$\\widetilde{\\epsilon}(q,\omega)$',fontsize=24)
     #ax[1].set_ylabel('$\\widetilde{\\epsilon}^{\\mathrm{'+flbl+'}}(q,\omega)$',fontsize=24)
     #ax[0].set_ylabel('$\\widetilde{\\epsilon}^{\\mathrm{RPA}}(q,\omega)$',fontsize=24)

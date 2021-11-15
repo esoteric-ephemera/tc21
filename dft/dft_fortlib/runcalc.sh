@@ -11,7 +11,7 @@ libs=(${MKLROOT}/lib/libmkl_intel_ilp64.a ${MKLROOT}/lib/libmkl_sequential.a ${M
 #compiler=gfortran
 #compiler_opts=(-g -fbacktrace -O3 -march=native -fopenmp)
 #libs=(-llapack)
-subs=(run_eps_c.f90 alda.f90 fxc.f90 qv_dlda.f90 mcp07.f90 gki_dlda.f90 eps_c_calc.f90 roots.f90 tc_dyn.f90 gauss_legendre.f90)
+subs=(run_eps_c.f90 alda.f90 fxc.f90 qv_dlda.f90 mcp07.f90 gki_dlda.f90 cp07.f90 ra_lff.f90 eps_c_calc.f90 roots.f90 tc_dyn.f90 gauss_legendre.f90)
 
 $compiler ${compiler_opts[*]} -o tst ${subs[*]} ${libs[*]}
 

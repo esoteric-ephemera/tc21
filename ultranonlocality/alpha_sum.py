@@ -224,7 +224,7 @@ def alpha_plotter(fxcl,sign_conv=1):
         elif anfxc == 'MCP07_k0':
             lbl = 'MCP07, $\\overline{k}=0$'
         elif anfxc == 'TC':
-            lbl = 'TC21'
+            lbl = 'rMCP07'
         else:
             lbl = anfxc
 
@@ -299,7 +299,7 @@ def alpha_plotter(fxcl,sign_conv=1):
             if crystal == 'C':
                 offset = -0.08
         elif anfxc == 'TC':
-            lbl = 'TC21'
+            lbl = 'rMCP07'
         else:
             lbl = anfxc
             if crystal == 'Si':

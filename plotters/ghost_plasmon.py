@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import multiprocessing as mp
 from os.path import isfile
 
-from dft.qmc_connector import get_sqw_single_rs
+from dft.fhnc_connector import get_sqw_single_rs
 from dft.chi import chi_parser
 from settings import pi,LDA,clist
 
@@ -40,7 +40,7 @@ def plot_ghost_exciton(regen_qv_dat=False):
     maxxn = max([maxxn,qmc_sqw[wind].max()/Eh_to_keV])
     minn = min([minn,qmc_sqw[wind].min()/Eh_to_keV])
 
-    for ifxc,fxc in enumerate(['MCP07','TC','QVmulti']):#['RPA','ALDA','MCP07','TC','QVmulti']):
+    for ifxc,fxc in enumerate(['MCP07','TC','QVmulti']):#['RPA','ALDA','MCP07','rMCP07','QVmulti']):
 
         if fxc == 'QVmulti':
             wfile = './reference_data/qv_rs_8_q_2.2_sq_omega.csv'
@@ -57,7 +57,7 @@ def plot_ghost_exciton(regen_qv_dat=False):
         minn = min([minn,sqw_tddft.min()/Eh_to_keV])
         lbl = fxc
         if fxc == 'TC':
-            lbl = 'TC21'
+            lbl = 'rMCP07'
         elif fxc == 'QVmulti':
             lbl = 'QV'
         ax.plot(po,sqw_tddft/Eh_to_keV,color=clist[ifxc+1],linestyle=lnsl[ifxc%3],label=lbl,linewidth=2.5)

@@ -9,7 +9,7 @@ program jellium_ec
 
   integer, parameter :: nrs = 129!ceiling((rs_max-rs_min)/drs)
 
-  real(dp), dimension(nrs) :: rsl, ec_rpa, ec_alda,ec_mcp07,ec_tc21
+  real(dp), dimension(nrs) :: rsl, ec_rpa, ec_alda,ec_mcp07,ec_tc21, ec_cp07, ec_ra
   real(dp) :: ecpw92
   integer :: irs
 
@@ -27,23 +27,23 @@ program jellium_ec
     !rsl(irs) = rs_min + drs*irs
     if (rsl(irs) > 10._dp) then
       call get_eps_c(100,100,rsl(irs),ec_rpa(irs),ec_alda(irs),ec_mcp07(irs)&
-     &    ,ec_tc21(irs))
+     &    ,ec_tc21(irs), ec_cp07(irs), ec_ra(irs))
     else
       call get_eps_c(200,200,rsl(irs),ec_rpa(irs),ec_alda(irs),ec_mcp07(irs)&
-     &    ,ec_tc21(irs))
+     &    ,ec_tc21(irs), ec_cp07(irs), ec_ra(irs))
     end if
   end do
   !$OMP END PARALLEL DO
   !stop
 
   open(unit=2,file='jell_eps_c.csv')
-  write(2,'(a)') 'rs, PW92, RPA, ALDA, MCP07, TC21'
+  write(2,'(a)') 'rs, PW92, RPA, ALDA, MCP07, rMCP07/TC21, CP07, RA'
   ! unfortunately the second do loop is needed because the multithreading removes
   ! the ordering of the rs values
   do irs = 1,nrs
     call ec_pw92_unpol(rsl(irs),ecpw92)
     write(str,*) rsl(irs),',',ecpw92,',',ec_rpa(irs),',',ec_alda(irs),',',ec_mcp07(irs),',',&
-    &    ec_tc21(irs)
+    &    ec_tc21(irs),',',ec_cp07(irs),',',ec_ra(irs)
     write(2,'(a)') trim(adjustl(str))
   end do
 

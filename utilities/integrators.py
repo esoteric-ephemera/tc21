@@ -324,7 +324,7 @@ def global_adap(fun,bds,opt_d,args=(),kwargs={}):
            -2   Bisection yielded regions smaller than machine precision
            -3   Result was below machine precision, estimating as zero
     """
-    meps = 7/3-4/3-1 # machine precision
+    meps = abs(7/3-4/3-1) # machine precision
 
     lbd,ubd = bds
 

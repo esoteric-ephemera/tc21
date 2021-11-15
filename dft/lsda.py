@@ -1,7 +1,6 @@
 import numpy as np
 
-import settings
-pi = settings.pi
+from settings import pi
 
 def exc(nu,nd):
 

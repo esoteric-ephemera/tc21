@@ -1,13 +1,14 @@
 
 subroutine get_eps_c(ninf,nlam,rs,ec_rpa,ec_alda,&
-  &    ec_mcp07,ec_tc21)
+  &    ec_mcp07,ec_tc21,ec_cp07,ec_ra)
 
+  use ra_local_ff, only : fxc_ra
   implicit none
   integer, parameter :: dp = selected_real_kind(15, 307)
 
   integer, intent(in) :: ninf, nlam
   real(dp), intent(in) :: rs
-  real(dp),intent(out) :: ec_rpa, ec_alda, ec_mcp07,ec_tc21
+  real(dp),intent(out) :: ec_rpa, ec_alda, ec_mcp07,ec_tc21, ec_cp07,ec_ra
 
   real(dp), parameter :: pi = 3.14159265358979323846264338327950288419_dp
 
@@ -97,6 +98,22 @@ subroutine get_eps_c(ninf,nlam,rs,ec_rpa,ec_alda,&
       fxchv = vcscl + real(fxcvc)/alam
       intgd = chi0(iq,:)**2*fxchv(:)/(1._dp - chi0(iq,:)*fxchv(:))
       ec_tc21 = ec_tc21 - dot_product(wwg,intgd)*cwg
+
+      !=========================================================================
+      ! CP07
+
+      call fxc_cp07_ifreq(rscl,aq,wscl,nq,fxcv)
+      fxchv = vcscl + fxcv/alam
+      intgd = chi0(iq,:)**2*fxchv(:)/(1._dp - chi0(iq,:)*fxchv(:))
+      ec_cp07 = ec_cp07 - dot_product(wwg,intgd)*cwg
+
+      !=========================================================================
+      ! RA
+
+      call  fxc_ra(aq,wscl,nq,rscl,fxcv)
+      fxchv = vcscl + fxcv/alam
+      intgd = chi0(iq,:)**2*fxchv(:)/(1._dp - chi0(iq,:)*fxchv(:))
+      ec_ra = ec_ra - dot_product(wwg,intgd)*cwg
 
     end do
   end do

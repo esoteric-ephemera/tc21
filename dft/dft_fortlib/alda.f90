@@ -17,7 +17,7 @@ subroutine alda(rs,param,fxc)
   else if (param == 'PW92') then
     call pw92_alda(rs,fxc)
   else
-    write(*,*),'Unrecognized LDA option:   ',param
+    write(*,*) 'Unrecognized LDA option:   ',param
     stop
   end if
 
@@ -128,7 +128,7 @@ subroutine lda_derivs(rs,param,ec,d_ec_drs)
   else if (param == 'PW92') then
     call pw92_derivs(rs,ec,d_ec_drs)
   else
-    write(*,*),'Unrecognized LDA option:   ',param
+    write(*,*) 'Unrecognized LDA option:   ',param
     stop
   end if
 

@@ -5,6 +5,8 @@ from dft.alda import alda
 from dft.gki_fxc import gki_dynamic
 from dft.qv_fxc import fxc_longitudinal, fxc_longitudinal_multi_proc
 from dft.mcp07 import mcp07_static,mcp07_dynamic,qv_mcp07
+from dft.ra_lff import fxc_ra
+from dft.cp07 import fxc_cp07
 
 pi = settings.pi
 
@@ -97,6 +99,18 @@ def chi_parser(z,omega,ixn,rs,wfxc,reduce_omega=False,imag_freq=False,ret_eps=Fa
         fxc = mcp07_dynamic(q,om,dvars,axis=which_axis,revised=True,pars=pars,param=LDA)
     elif wfxc == 'GKI':
         fxc = gki_dynamic(dvars,om,axis=which_axis,revised=True,param=LDA,use_par=settings.gki_param)
+    elif wfxc == 'RA':
+        if imag_freq:
+            fxc = fxc_ra(z,om.imag/(2*dvars['kF']**2),dvars['rs'])
+        else:
+            raise ValueError('Analytic continuation to real frequencies for the \
+                Richardson-Ashcroft (1994) kernel not implemented yet')
+    elif wfxc == 'CP07':
+        if imag_freq:
+            fxc = fxc_cp07(dvars,q,om.imag)
+        else:
+            raise ValueError('Analytic continuation to real frequencies for the \
+                Constantin-Pitarke (2007) kernel not implemented yet')
     elif wfxc == 'QV':
         fxc = fxc_longitudinal(dvars,om)
     elif wfxc == 'QVmulti':

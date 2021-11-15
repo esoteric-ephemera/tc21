@@ -61,10 +61,9 @@ def third_moment_plotter():
     ax.tick_params(axis='both',labelsize=20)
     ax.legend(fontsize=20)
     #plt.title('[3rd moment (solid) or sum rule (dashed)]$/[\omega_p(0)]^3$',fontsize=fsz)
+    lbl = settings.fxc
     if settings.fxc == 'TC':
-        lbl = 'TC21'
-    else:
-        lbl = settings.fxc
+        lbl = 'rMCP07'
     plt.title('$(\Sigma_3^L - \Sigma_3^R)/(\Sigma_3^L + \Sigma_3^R)$, {:}'.format(lbl),fontsize=24)
     plt.savefig('./figs/m3_sr_{:}.pdf'.format(settings.fxc),dpi=600,bbox_inches='tight')
     #plt.show()
